@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="applovin_sdk_id" translatable="false">k4zcutB4Zm3UzNpe_LApO1CCQU38cBxs1KLXxDwI4B5hApPwBK9Hh39JyuXQBq8V_cFqAxK6uUsMBdpMSz8Nev</string>
+    <string name="applovin_banner_key" translatable="false">4c90f50d66617af5</string>
+    <string name="applovin_inter_key" translatable="false">ef490e40cf62c393</string>
+    <string name="applovin_videoreward_key" translatable="false">6c1013c563b36599</string>
+    <string name="applovin_native_ads_key" translatable="false">177c5f2a919631d4</string>
+    <string name="applovin_mrec_ads_key" translatable="false">52feaaf819c17e9a</string>
+    <string name="applovin_native_small">585dfd28098fb81d</string>
+</resources>
