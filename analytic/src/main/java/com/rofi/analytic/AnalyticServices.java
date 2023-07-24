@@ -27,7 +27,7 @@ public class AnalyticServices {
     private List<IAnalytic> analyticList;
     private boolean _isInit;
 
-    public void Init(Activity activity, String af_dev_key, boolean isDebug) {
+    public void Init(Activity activity) {
         if (_isInit) return;
         _activityCached = activity;
 

@@ -96,6 +96,32 @@ public class MaxAdsService implements IAdsService {
         });
     }
 
+    public void onResume(){
+
+    }
+
+
+    private void ShowResumeAds() {
+//        if (appOpenAd == null) return;
+        boolean showOpenAppAds = FirebaseRemoteConfigService.getInstance().GetBoolean(Constants.RESUME_ADS_KEY);
+        if (!showOpenAppAds) return;
+        //resume from ads
+        if (isInterAdClicked) {
+            isInterAdClicked = false;
+            return;
+        }
+
+        mIsShowingAppOpenAd = true;
+//        isCoolDownShowInter = false;
+        ShowInter(1);
+
+//        if (appOpenAd.isReady()) {
+//            appOpenAd.showAd();
+//        } else {
+//            appOpenAd.loadAd();
+//        }
+    }
+
     //private
     void InitVideoRewardAds(Activity activity) {
         String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
