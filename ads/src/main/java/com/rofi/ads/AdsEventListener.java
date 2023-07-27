@@ -5,8 +5,6 @@ public interface AdsEventListener {
 
     void onVideoRewardDisplayed();
 
-    void onVideoRewardRewarded();
-
     void onVideoRewardUserRewarded(String requestCode);
 
 

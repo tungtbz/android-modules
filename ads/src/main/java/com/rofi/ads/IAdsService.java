@@ -22,7 +22,7 @@ public interface IAdsService {
 
     void OnPause();
 
-    void Resume();
+    void onResume();
 
     void SetEventListener(AdsEventListener listener);
 }

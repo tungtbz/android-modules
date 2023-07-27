@@ -96,10 +96,11 @@ public class MaxAdsService implements IAdsService {
         });
     }
 
-    public void onResume(){
-
+    @Override
+    public void onResume() {
+        Log.d(TAG, "onResume");
+        ShowResumeAds();
     }
-
 
     private void ShowResumeAds() {
 //        if (appOpenAd == null) return;
@@ -112,14 +113,9 @@ public class MaxAdsService implements IAdsService {
         }
 
         mIsShowingAppOpenAd = true;
-//        isCoolDownShowInter = false;
+
         ShowInter(1);
 
-//        if (appOpenAd.isReady()) {
-//            appOpenAd.showAd();
-//        } else {
-//            appOpenAd.loadAd();
-//        }
     }
 
     //private
@@ -676,11 +672,6 @@ public class MaxAdsService implements IAdsService {
 
     @Override
     public void OnPause() {
-
-    }
-
-    @Override
-    public void Resume() {
 
     }
 
