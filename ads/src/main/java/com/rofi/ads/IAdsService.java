@@ -20,9 +20,9 @@ public interface IAdsService {
 
     void HideMREC();
 
-    void OnPause();
+    void OnPause(Activity activity);
 
-    void onResume();
+    void onResume(Activity activity);
 
     void SetEventListener(AdsEventListener listener);
 }

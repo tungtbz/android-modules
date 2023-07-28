@@ -89,15 +89,15 @@ public class MaxAdsService implements IAdsService {
             public void onSdkInitialized(final AppLovinSdkConfiguration configuration) {
                 InitVideoRewardAds(activity);
                 InitInterAds(activity);
-
                 //cache MREC
                 LoadMREC(activity);
+                Log.d(TAG, "onSdkInitialized");
             }
         });
     }
 
     @Override
-    public void onResume() {
+    public void onResume(Activity activity) {
         Log.d(TAG, "onResume");
         ShowResumeAds();
     }
@@ -671,7 +671,7 @@ public class MaxAdsService implements IAdsService {
     }
 
     @Override
-    public void OnPause() {
+    public void OnPause(Activity activity) {
 
     }
 
