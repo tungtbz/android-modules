@@ -44,9 +44,15 @@ public class IronsourceAdsService implements IAdsService {
 
     private FrameLayout mRECParentContainer;
     private IronSourceBannerLayout mIronSourceRECBannerLayout;
+    private String _appKey;
 
     @Override
-    public void Init(Activity activity) {
+    public void Init(Activity activity, String[] args) {
+        if (args == null || args.length == 0) {
+            Log.e(TAG, "args is empty!");
+            return;
+        }
+        _appKey = args[0];
         IronSource.addImpressionDataListener(new ImpressionDataListener() {
             @Override
             public void onImpressionSuccess(ImpressionData impressionData) {

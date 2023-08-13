@@ -27,7 +27,7 @@ public class AnalyticServices {
     private List<IAnalytic> analyticList;
     private boolean _isInit;
 
-    public void Init(Activity activity) {
+    public void Init(Activity activity, String[] args) {
         if (_isInit) return;
         _activityCached = activity;
 
@@ -36,7 +36,7 @@ public class AnalyticServices {
         analyticList.add(new AppflyerAcnalytic());
 
         for (IAnalytic analytic : analyticList) {
-            analytic.Init(activity);
+            analytic.Init(activity, args);
         }
 
         LoadLocalData(activity);

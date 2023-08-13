@@ -70,9 +70,26 @@ public class MaxAdsService implements IAdsService {
     private MaxNativeAdLoader nativeBannerAdLoader;
     private MaxAd nativeAd, nativeBannerAd;
     private int mEndGameAdType;
+    private String _bannerAdId;
+    private String _interAdId;
+    private String _rewardAdId;
+    private String _mrecAdId;
+    private String _nativeNormalAdId;
+    private String _nativeSmallAdId;
 
     @Override
-    public void Init(Activity activity) {
+    public void Init(Activity activity, String[] args) {
+        if (args == null || args.length == 0) {
+            Log.e(TAG, "args is empty!");
+            return;
+        }
+        _bannerAdId = args[0];
+        _interAdId = args[1];
+        _rewardAdId = args[2];
+        _mrecAdId = args[3];
+        _nativeNormalAdId = args[4];
+        _nativeSmallAdId = args[5];
+
         mRectBannerState = 0;
         mRectShowFlag = 1;
 
@@ -120,7 +137,8 @@ public class MaxAdsService implements IAdsService {
 
     //private
     void InitVideoRewardAds(Activity activity) {
-        String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
+//        String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
+        String videoRewardKey = _rewardAdId;
         mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, activity);
 
         mRewardedAd.setRevenueListener(new MaxAdRevenueListener() {
@@ -204,10 +222,10 @@ public class MaxAdsService implements IAdsService {
     }
 
     void InitInterAds(Activity activity) {
-        String interKey = activity.getResources().getString(R.string.applovin_inter_key);
-        Log.d(TAG, "createInterstitialAd: " + interKey);
+//        String interKey = activity.getResources().getString(R.string.applovin_inter_key);
+        Log.d(TAG, "createInterstitialAd: " + _interAdId);
 
-        mInterstitialAd = new MaxInterstitialAd(interKey, activity);
+        mInterstitialAd = new MaxInterstitialAd(_interAdId, activity);
         mInterstitialAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -301,10 +319,10 @@ public class MaxAdsService implements IAdsService {
     }
 
     private void LoadMREC(Activity activity) {
-        String mrecKey = activity.getResources().getString(R.string.applovin_mrec_ads_key);
-        Log.d(TAG, "LoadRectBannerApplovin: bannerKey" + mrecKey);
+//        String mrecKey = activity.getResources().getString(R.string.applovin_mrec_ads_key);
+        Log.d(TAG, "LoadRectBannerApplovin: bannerKey" + _mrecAdId);
 
-        rectAdView = new MaxAdView(mrecKey, MaxAdFormat.MREC, activity.getApplicationContext());
+        rectAdView = new MaxAdView(_mrecAdId, MaxAdFormat.MREC, activity.getApplicationContext());
         rectAdView.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -410,8 +428,8 @@ public class MaxAdsService implements IAdsService {
         rootView.addView(mNativeBannerAdsContainer);
 
         //init ads
-        String adsKey = activity.getResources().getString(R.string.applovin_native_small);
-        nativeBannerAdLoader = new MaxNativeAdLoader(adsKey, activity.getApplicationContext());
+//        String adsKey = activity.getResources().getString(R.string.applovin_native_small);
+        nativeBannerAdLoader = new MaxNativeAdLoader(_nativeSmallAdId, activity.getApplicationContext());
         nativeBannerAdLoader.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -485,10 +503,10 @@ public class MaxAdsService implements IAdsService {
     }
 
     private void LoadNormalBanner(Activity activity) {
-        String bannerKey = activity.getResources().getString(R.string.applovin_banner_key);
-        Log.d(TAG, "LoadApplovinBottomBanner: bannerKey" + bannerKey);
+//        String bannerKey = activity.getResources().getString(R.string.applovin_banner_key);
+        Log.d(TAG, "LoadApplovinBottomBanner: bannerKey" + _bannerAdId);
 
-        bannerAdView = new MaxAdView(bannerKey, activity.getApplicationContext());
+        bannerAdView = new MaxAdView(_bannerAdId, activity.getApplicationContext());
 
         bannerAdView.setRevenueListener(new MaxAdRevenueListener() {
             @Override

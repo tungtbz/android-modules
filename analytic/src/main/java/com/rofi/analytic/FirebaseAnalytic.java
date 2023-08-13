@@ -14,7 +14,7 @@ public class FirebaseAnalytic implements IAnalytic {
     private FirebaseAnalytics mFirebaseAnalytics;
 
     @Override
-    public void Init(Activity activity) {
+    public void Init(Activity activity, String[] args) {
         // Obtain the FirebaseAnalytics instance.
         mFirebaseAnalytics = FirebaseAnalytics.getInstance(activity.getApplicationContext());
     }

@@ -2,7 +2,7 @@ package com.rofi.analytic;
 import android.app.Activity;
 
 public interface IAnalytic {
-    void Init(Activity activity);
+    void Init(Activity activity,String[] args);
 
     void LogEvent(Activity activity, String eventName, String eventData);
 

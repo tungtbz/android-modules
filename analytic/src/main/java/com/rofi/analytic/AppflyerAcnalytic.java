@@ -15,9 +15,13 @@ import java.util.Locale;
 import java.util.Map;
 
 public class AppflyerAcnalytic implements IAnalytic {
+    String _mainNetwork;
     @Override
-    public void Init(Activity activity) {
-        String af_dev_key = activity.getResources().getString(R.string.APPFLYER_DEV_KEY);
+    public void Init(Activity activity, String[] args) {
+
+        String af_dev_key = args[0];
+        _mainNetwork = args[1];
+
         AppsFlyerLib.getInstance().init(af_dev_key, null, activity.getApplicationContext());
         AppsFlyerLib.getInstance().start(activity.getApplicationContext());
 
@@ -43,7 +47,7 @@ public class AppflyerAcnalytic implements IAnalytic {
         Map<String, String> customParams = new HashMap<>();
         customParams.put(Scheme.AD_UNIT, adUnitId);
         customParams.put(Scheme.AD_TYPE, adFormat);
-        AppsFlyerAdRevenue.logAdRevenue("applovin", mediationNetwork, Currency.getInstance(Locale.US), value, customParams);
+        AppsFlyerAdRevenue.logAdRevenue(_mainNetwork, mediationNetwork, Currency.getInstance(Locale.US), value, customParams);
     }
 
     private MediationNetwork GetMediationNetwork(String networkName) {

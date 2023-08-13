@@ -3,7 +3,7 @@ package com.rofi.ads;
 import android.app.Activity;
 
 public interface IAdsService {
-    void Init(Activity activity);
+    void Init(Activity activity, String[] args);
 
     boolean IsRewardReady();
     boolean IsInterReady();
