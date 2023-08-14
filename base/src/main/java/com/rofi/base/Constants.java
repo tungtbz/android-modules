@@ -5,6 +5,8 @@ public class Constants {
     public static String ADS_INTERVAL = "ads_interval";
 
     public static String RK_BANNER_TYPE = "banner_type";
+    public static String RK_BANNER_TYPE_OF_SCREEN = "banner_type_of_screen_";
+    public static String RK_MREC_TYPE_OF_SCREEN = "mrec_type_of_screen_";
 
     public static String RK_SHOW_RELOAD_ADS = "show_reload_ads";
     public static String RK_SHOW_SETTING_ADS = "show_setting_ads";
@@ -24,4 +26,6 @@ public class Constants {
     public static String SHOW_INTER_ADS_COUNT = "showintercount";
     public static String SHOW_INTER_ADS_EVENT_NAME = "af_inters_displayed_%d_times";
 
+    public static int POSITION_CENTER_TOP = 0;
+    public static int POSITION_CENTER_BOTTOM = 1;
 }

@@ -269,12 +269,12 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     @Override
-    public void ShowBanner(Activity activity) {
+    public void ShowBanner(Activity activity, int screenCode) {
         LoadNormalBanner(activity);
     }
 
     @Override
-    public void HideBanner() {
+    public void HideBanner(int screenCode) {
         Log.d(TAG, "StopBottomBanner");
         if (mBannerContainer != null && mIronSourceBannerLayout != null) {
             mBannerContainer.setVisibility(View.GONE);

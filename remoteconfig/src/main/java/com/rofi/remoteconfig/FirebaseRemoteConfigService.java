@@ -81,6 +81,7 @@ public class FirebaseRemoteConfigService {
     public int GetInt(String key) {
         if (mFirebaseRemoteConfig == null) return 0;
         if (map.containsKey(key)) return ((Double) map.get(key)).intValue();
+
         return (int) mFirebaseRemoteConfig.getDouble(key);
     }
 

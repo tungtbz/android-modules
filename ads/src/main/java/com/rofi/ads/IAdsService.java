@@ -6,15 +6,16 @@ public interface IAdsService {
     void Init(Activity activity, String[] args);
 
     boolean IsRewardReady();
+
     boolean IsInterReady();
 
     void ShowReward(int requestCode);
 
     void ShowInter(int requestCode);
 
-    void ShowBanner(Activity activity);
+    void ShowBanner(Activity activity, int screenCode);
 
-    void HideBanner();
+    void HideBanner(int screenCode);
 
     void ShowMREC(Activity activity);
 

@@ -58,18 +58,18 @@ public class MaxAdsService implements IAdsService {
 
     private boolean isCoolDownShowInter;
     private boolean isInterAdClicked;
-    FrameLayout mNativeAdsContainer;
 
-    FrameLayout mNativeBannerAdsContainer;
     private int mRetryAttemptNativeAds;
 
     private int mRetryAttemptNativeBannerAds;
     //native ads
-    private MaxNativeAdLoader nativeAdLoader;
+    private FrameLayout mNativeAdsContainer;
+    private FrameLayout mNativeBannerAdsContainer;
 
+    private MaxNativeAdLoader nativeAdLoader;
     private MaxNativeAdLoader nativeBannerAdLoader;
     private MaxAd nativeAd, nativeBannerAd;
-    private int mEndGameAdType;
+
     private String _bannerAdId;
     private String _interAdId;
     private String _rewardAdId;
@@ -77,18 +77,28 @@ public class MaxAdsService implements IAdsService {
     private String _nativeNormalAdId;
     private String _nativeSmallAdId;
 
+    private int _bannerPosition;
+    private int _mrecPosition;
+
+    private Activity _activity;
+
     @Override
     public void Init(Activity activity, String[] args) {
         if (args == null || args.length == 0) {
             Log.e(TAG, "args is empty!");
             return;
         }
+        _activity = activity;
+
         _bannerAdId = args[0];
         _interAdId = args[1];
         _rewardAdId = args[2];
         _mrecAdId = args[3];
         _nativeNormalAdId = args[4];
         _nativeSmallAdId = args[5];
+
+        _bannerPosition = Integer.parseInt(args[6]);
+        _mrecPosition = Integer.parseInt(args[7]);
 
         mRectBannerState = 0;
         mRectShowFlag = 1;
@@ -104,11 +114,12 @@ public class MaxAdsService implements IAdsService {
         AppLovinSdk.initializeSdk(activity.getApplicationContext(), new AppLovinSdk.SdkInitializationListener() {
             @Override
             public void onSdkInitialized(final AppLovinSdkConfiguration configuration) {
-                InitVideoRewardAds(activity);
-                InitInterAds(activity);
-                //cache MREC
-                LoadMREC(activity);
                 Log.d(TAG, "onSdkInitialized");
+
+                InitVideoRewardAds(_activity);
+                InitInterAds(_activity);
+//                //cache MREC
+                LoadMREC(_activity, _mrecPosition);
             }
         });
     }
@@ -318,7 +329,7 @@ public class MaxAdsService implements IAdsService {
         mInterstitialAd.loadAd();
     }
 
-    private void LoadMREC(Activity activity) {
+    private void LoadMREC(Activity activity, int position) {
 //        String mrecKey = activity.getResources().getString(R.string.applovin_mrec_ads_key);
         Log.d(TAG, "LoadRectBannerApplovin: bannerKey" + _mrecAdId);
 
@@ -378,9 +389,9 @@ public class MaxAdsService implements IAdsService {
         // MREC width and height are 300 and 250 respectively, on phones and tablets
         int widthPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 300);
         int heightPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 250);
-
-        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(widthPx, heightPx, Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
-        layoutParams.setMargins(0, 0, 0, 10);
+        int gravity = position == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(widthPx, heightPx, gravity);
+        layoutParams.setMargins(0, 0, 0, 0);
         rectAdView.setLayoutParams(layoutParams);
         rectAdView.setVisibility(View.GONE);
 
@@ -404,25 +415,25 @@ public class MaxAdsService implements IAdsService {
         _adsAdsEventListener.onAdRevenuePaid(adFormatStr, adUnitId, networkName, revenue);
     }
 
-    private void ShowNativeBanner(Activity activity) {
+    private void ShowNativeBanner(Activity activity, int position) {
         if (nativeBannerAdLoader != null) {
             Log.d(TAG, "ShowNativeBanner: 111");
             mNativeBannerAdsContainer.setVisibility(View.VISIBLE);
             nativeBannerAdLoader.loadAd();
         } else {
             Log.d(TAG, "ShowNativeBanner: 222");
-            InitNativeBannerAds(activity);
+            InitNativeBannerAds(activity, position);
         }
     }
 
-    private void InitNativeBannerAds(Activity activity) {
+    private void InitNativeBannerAds(Activity activity, int position) {
         //prepare container
         mNativeBannerAdsContainer = new FrameLayout(activity);
         int widthPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 360);
         int heightPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 120);
 
-        mNativeBannerAdsContainer.setLayoutParams(new FrameLayout.LayoutParams(widthPx, heightPx, Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM));
-//        mNativeBannerAdsContainer.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, heightPx, Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM));
+        int gravity = position == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+        mNativeBannerAdsContainer.setLayoutParams(new FrameLayout.LayoutParams(widthPx, heightPx, gravity));
 
         ViewGroup rootView = activity.findViewById(android.R.id.content);
         rootView.addView(mNativeBannerAdsContainer);
@@ -481,15 +492,17 @@ public class MaxAdsService implements IAdsService {
     }
 
     private void HideNativeBanner() {
+        //destroy
         if (nativeBannerAd != null) {
             nativeBannerAdLoader.destroy(nativeBannerAd);
         }
+        //hide container
         if (mNativeBannerAdsContainer != null) {
             mNativeBannerAdsContainer.setVisibility(View.GONE);
         }
     }
 
-    private void ShowNormalBanner(Activity activity) {
+    private void ShowNormalBanner(Activity activity, int position) {
         if (bannerAdView != null) {
             Log.d(TAG, "ShowBottomBannerAppLovin: 1");
             if (bannerAdView.getVisibility() != View.VISIBLE)
@@ -498,16 +511,15 @@ public class MaxAdsService implements IAdsService {
             bannerAdView.startAutoRefresh();
         } else {
             Log.d(TAG, "ShowBottomBannerAppLovin: 2");
-            LoadNormalBanner(activity);
+            LoadNormalBanner(activity, position);
         }
     }
 
-    private void LoadNormalBanner(Activity activity) {
+    private void LoadNormalBanner(Activity activity, int position) {
 //        String bannerKey = activity.getResources().getString(R.string.applovin_banner_key);
-        Log.d(TAG, "LoadApplovinBottomBanner: bannerKey" + _bannerAdId);
+        Log.d(TAG, "Load Banner: " + _bannerAdId);
 
         bannerAdView = new MaxAdView(_bannerAdId, activity.getApplicationContext());
-
         bannerAdView.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -528,6 +540,7 @@ public class MaxAdsService implements IAdsService {
 
             @Override
             public void onAdLoaded(MaxAd ad) {
+
                 Log.d(TAG, "BANNER onAdLoaded: ");
             }
 
@@ -567,9 +580,13 @@ public class MaxAdsService implements IAdsService {
         int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight();
         int heightPx = AppLovinSdkUtils.dpToPx(activity, heightDp);
         bannerAdView.setExtraParameter("adaptive_banner", "true");
-
         bannerAdView.setBackgroundColor(Color.rgb(0, 0, 0));
-        bannerAdView.setLayoutParams(new FrameLayout.LayoutParams(width, heightPx, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+
+        int gravity = 0;
+        if (position == Constants.POSITION_CENTER_TOP)
+            gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        else gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        bannerAdView.setLayoutParams(new FrameLayout.LayoutParams(width, heightPx, gravity));
 
         ViewGroup rootView = activity.findViewById(android.R.id.content);
         rootView.addView(bannerAdView);
@@ -584,11 +601,9 @@ public class MaxAdsService implements IAdsService {
             // Set this extra parameter to work around SDK bug that ignores calls to stopAutoRefresh()
             bannerAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
             bannerAdView.stopAutoRefresh();
-
             bannerAdView.setVisibility(View.GONE);
         }
     }
-
 
     @Override
     public boolean IsRewardReady() {
@@ -642,31 +657,33 @@ public class MaxAdsService implements IAdsService {
     }
 
     @Override
-    public void ShowBanner(Activity activity) {
-        int type = FirebaseRemoteConfigService.getInstance().GetInt(Constants.RK_BANNER_TYPE);
-        Log.d(TAG, "ShowBanner: " + type);
+    public void ShowBanner(Activity activity, int screenCode) {
+
+        int type = FirebaseRemoteConfigService.getInstance().GetInt(Constants.RK_BANNER_TYPE_OF_SCREEN + screenCode);
+        Log.d(TAG, "ShowBanner for screen: " + screenCode + " with position: " + _bannerPosition + ", type: " + type);
+
         if (type == 0) {
             // Show Normal Banner
-            ShowNormalBanner(activity);
+            ShowNormalBanner(activity, _bannerPosition);
         } else if (type == 1) {
             // Show Native Banner
-            ShowNativeBanner(activity);
+            ShowNativeBanner(activity, _bannerPosition);
         }
     }
 
     @Override
-    public void HideBanner() {
-        int type = FirebaseRemoteConfigService.getInstance().GetInt(Constants.RK_BANNER_TYPE);
-        if (type == 0) {
-            HideNormalBanner();
-        } else if (type == 1) {
-            HideNativeBanner();
-        }
+    public void HideBanner(int screenCode) {
+        HideNormalBanner();
+        HideNativeBanner();
     }
 
     @Override
     public void ShowMREC(Activity activity) {
-        if (rectAdView == null) return;
+        if (rectAdView == null) {
+            LoadMREC(activity, _mrecPosition);
+            return;
+        }
+
         mRectShowFlag = 2;
         if (rectAdView.getVisibility() != View.VISIBLE) {
             rectAdView.setVisibility(View.VISIBLE);
@@ -687,6 +704,97 @@ public class MaxAdsService implements IAdsService {
 
         mRectShowFlag = 1;
     }
+
+    //Native RECT
+    private void LoadNativeAds(Activity activity, int position) {
+        //prepare container
+        mNativeAdsContainer = new FrameLayout(activity);
+        int widthPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 300);
+        int heightPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 250);
+
+        int gravity = 0;
+        if (position == Constants.POSITION_CENTER_TOP)
+            gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        else gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(widthPx, heightPx, gravity);
+        layoutParams.setMargins(0, 0, 0, 0);
+        mNativeAdsContainer.setLayoutParams(layoutParams);
+
+        ViewGroup rootView = activity.findViewById(android.R.id.content);
+        rootView.addView(mNativeAdsContainer);
+        //init ads
+        String adsKey = activity.getResources().getString(R.string.applovin_native_ads_key);
+
+        nativeAdLoader = new MaxNativeAdLoader(adsKey, activity.getApplicationContext());
+        nativeAdLoader.setRevenueListener(new MaxAdRevenueListener() {
+            @Override
+            public void onAdRevenuePaid(MaxAd ad) {
+                LogRevenue(ad);
+            }
+        });
+
+        nativeAdLoader.setNativeAdListener(new MaxNativeAdListener() {
+            @Override
+            public void onNativeAdLoaded(final MaxNativeAdView nativeAdView, final MaxAd ad) {
+                // Clean up any pre-existing native ad to prevent memory leaks.
+                Log.d(TAG, "onNativeAdLoaded ");
+                mRetryAttemptNativeAds = 0;
+                if (nativeAd != null) {
+                    nativeAdLoader.destroy(nativeAd);
+                }
+
+                // Save ad for cleanup.
+                nativeAd = ad;
+
+                // Add ad view to view.
+                mNativeAdsContainer.removeAllViews();
+                mNativeAdsContainer.addView(nativeAdView);
+            }
+
+            @Override
+            public void onNativeAdLoadFailed(final String adUnitId, final MaxError error) {
+                // We recommend retrying with exponentially higher delays up to a maximum delay
+                Log.d(TAG, "onNativeAdLoadFailed ");
+                mRetryAttemptNativeAds++;
+                long delayMillis = TimeUnit.SECONDS.toMillis((long) Math.pow(2, Math.min(6, mRetryAttemptNativeAds)));
+
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        nativeAdLoader.loadAd();
+                    }
+                }, delayMillis);
+
+            }
+
+            @Override
+            public void onNativeAdClicked(final MaxAd ad) {
+                // Optional click callback
+            }
+        });
+
+        nativeAdLoader.loadAd();
+    }
+
+    public void ShowNativeAds(Activity activity, int position) {
+        if (nativeAdLoader != null) {
+            mNativeAdsContainer.setVisibility(View.VISIBLE);
+            nativeAdLoader.loadAd();
+        } else {
+            LoadNativeAds(activity, position);
+        }
+    }
+
+    public void HideNativeAds() {
+        if (nativeAd != null) {
+            nativeAdLoader.destroy(nativeAd);
+        }
+        if (mNativeAdsContainer != null) {
+            mNativeAdsContainer.setVisibility(View.GONE);
+        }
+    }
+
 
     @Override
     public void OnPause(Activity activity) {
