@@ -314,6 +314,16 @@ public class IronsourceAdsService implements IAdsService {
         _adsEventListener = listener;
     }
 
+    @Override
+    public void IncreaseBlockAutoShowInter() {
+
+    }
+
+    @Override
+    public void DecreaseBlockAutoShowInter() {
+
+    }
+
     private void LoadNormalBanner(Activity activity) {
 
         ISBannerSize size = ISBannerSize.SMART;

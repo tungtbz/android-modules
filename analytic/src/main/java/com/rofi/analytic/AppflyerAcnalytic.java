@@ -57,7 +57,9 @@ public class AppflyerAcnalytic implements IAnalytic {
         if (networkName.contains("Char")) return MediationNetwork.chartboost;
         if (networkName.contains("App")) return MediationNetwork.applovinmax;
         if (networkName.contains("Fyber")) return MediationNetwork.fyber;
-        return MediationNetwork.customMediation;
+
+        if(_mainNetwork.contains("applovin")) return MediationNetwork.applovinmax;
+        return MediationNetwork.ironsource;
     }
 
     @Override

@@ -81,6 +81,7 @@ public class MaxAdsService implements IAdsService {
     private int _mrecPosition;
 
     private Activity _activity;
+    private int blockAutoShowInterCount;
 
     @Override
     public void Init(Activity activity, String[] args) {
@@ -127,6 +128,11 @@ public class MaxAdsService implements IAdsService {
     @Override
     public void onResume(Activity activity) {
         Log.d(TAG, "onResume");
+        if (blockAutoShowInterCount > 0) {
+            DecreaseBlockAutoShowInter();
+            return;
+        }
+
         ShowResumeAds();
     }
 
@@ -191,6 +197,8 @@ public class MaxAdsService implements IAdsService {
             public void onAdDisplayed(MaxAd ad) {
 //                AnalyticServices.getInstance().LogEvent(UnityPlayer.currentActivity, "af_rewarded_ad_displayed", null);
                 _adsAdsEventListener.onVideoRewardDisplayed();
+                isCoolDownShowInter = true;
+                IncreaseBlockAutoShowInter();
             }
 
             @Override
@@ -198,6 +206,13 @@ public class MaxAdsService implements IAdsService {
                 // rewarded ad is hidden. Pre-load the next ad
                 Log.d(TAG, "video reward onAdHidden: =============================");
                 mRewardedAd.loadAd();
+                DecreaseBlockAutoShowInter();
+
+                ThreadUltils.startTask(() -> {
+                    // doTask
+                    isCoolDownShowInter = false;
+                    Log.d(TAG, "Inter Reset Cooldown");
+                }, 5 * 1000L);
             }
 
             @Override
@@ -270,6 +285,7 @@ public class MaxAdsService implements IAdsService {
 
                 Log.d(TAG, "Inter: onAdDisplayed");
                 _adsAdsEventListener.onInterDisplayed();
+                isCoolDownShowInter = true;
             }
 
             @Override
@@ -637,22 +653,25 @@ public class MaxAdsService implements IAdsService {
             } else {
                 mIsShowingAppOpenAd = false;
             }
+            Log.d(TAG, "ShowInter: check 1 ");
             return;
         }
 
         //show normal
-        if (isCoolDownShowInter) return;
+        if (isCoolDownShowInter) {
+            Log.d(TAG, "ShowInter: check 2 ");
+            return;
+        }
 
         if (IsInterReady()) {
             //reset flags
             isInterAdClicked = false;
-            isCoolDownShowInter = true;
-
+            Log.d(TAG, "ShowInter: check 3 ");
             mCurrentInterRequestCode = requestCode;
             mInterstitialAd.showAd();
 
         } else {
-            Log.e(TAG, "ShowInter_Applovin: FAILEDDDDDDDDDDDDD");
+            Log.d(TAG, "ShowInter: check 4 ");
         }
     }
 
@@ -719,6 +738,7 @@ public class MaxAdsService implements IAdsService {
 
         FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(widthPx, heightPx, gravity);
         layoutParams.setMargins(0, 0, 0, 0);
+
         mNativeAdsContainer.setLayoutParams(layoutParams);
 
         ViewGroup rootView = activity.findViewById(android.R.id.content);
@@ -806,5 +826,16 @@ public class MaxAdsService implements IAdsService {
     @Override
     public void SetEventListener(AdsEventListener listener) {
         _adsAdsEventListener = listener;
+    }
+
+    @Override
+    public void IncreaseBlockAutoShowInter() {
+        blockAutoShowInterCount += 1;
+    }
+
+    @Override
+    public void DecreaseBlockAutoShowInter() {
+        blockAutoShowInterCount -= 1;
+        if (blockAutoShowInterCount < 0) blockAutoShowInterCount = 0;
     }
 }

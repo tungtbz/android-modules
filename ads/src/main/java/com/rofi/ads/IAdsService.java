@@ -26,4 +26,8 @@ public interface IAdsService {
     void onResume(Activity activity);
 
     void SetEventListener(AdsEventListener listener);
+
+    void IncreaseBlockAutoShowInter();
+
+    void DecreaseBlockAutoShowInter();
 }
