@@ -127,7 +127,7 @@ public class MaxAdsService implements IAdsService {
 
     @Override
     public void onResume(Activity activity) {
-        Log.d(TAG, "onResume");
+        Log.d(TAG, "onResume blockAutoShowInterCount: " + blockAutoShowInterCount);
         if (blockAutoShowInterCount > 0) {
             DecreaseBlockAutoShowInter();
             return;
@@ -178,6 +178,7 @@ public class MaxAdsService implements IAdsService {
 
             @Override
             public void onUserRewarded(final MaxAd maxAd, final MaxReward maxReward) {
+                Log.d(TAG, "video reward onUserRewarded: =============================");
                 // Rewarded ad was displayed and user should receive the reward
 //                LibraryBridge.SendMessageFromNativeToGame("OnVideoRewardedWithCode", String.valueOf(mCurrentVideoRewardRequestCode));
                 _adsAdsEventListener.onVideoRewardUserRewarded(String.valueOf(mCurrentVideoRewardRequestCode));
@@ -197,6 +198,7 @@ public class MaxAdsService implements IAdsService {
             public void onAdDisplayed(MaxAd ad) {
 //                AnalyticServices.getInstance().LogEvent(UnityPlayer.currentActivity, "af_rewarded_ad_displayed", null);
                 _adsAdsEventListener.onVideoRewardDisplayed();
+                Log.d(TAG, "video reward onAdDisplayed: =============================");
                 isCoolDownShowInter = true;
                 IncreaseBlockAutoShowInter();
             }
@@ -206,7 +208,6 @@ public class MaxAdsService implements IAdsService {
                 // rewarded ad is hidden. Pre-load the next ad
                 Log.d(TAG, "video reward onAdHidden: =============================");
                 mRewardedAd.loadAd();
-                DecreaseBlockAutoShowInter();
 
                 ThreadUltils.startTask(() -> {
                     // doTask
@@ -830,11 +831,13 @@ public class MaxAdsService implements IAdsService {
 
     @Override
     public void IncreaseBlockAutoShowInter() {
+        Log.d(TAG, "IncreaseBlockAutoShowInter ");
         blockAutoShowInterCount += 1;
     }
 
     @Override
     public void DecreaseBlockAutoShowInter() {
+        Log.d(TAG, "DecreaseBlockAutoShowInter ");
         blockAutoShowInterCount -= 1;
         if (blockAutoShowInterCount < 0) blockAutoShowInterCount = 0;
     }
