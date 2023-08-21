@@ -46,6 +46,10 @@ public class IronsourceAdsService implements IAdsService {
     private IronSourceBannerLayout mIronSourceRECBannerLayout;
     private String _appKey;
 
+    private int blockAutoShowInterCount;
+    private int _bannerPosition;
+    private int _mrecPosition;
+
     @Override
     public void Init(Activity activity, String[] args) {
         if (args == null || args.length == 0) {
@@ -53,6 +57,9 @@ public class IronsourceAdsService implements IAdsService {
             return;
         }
         _appKey = args[0];
+        _bannerPosition = Integer.parseInt(args[6]);
+        _mrecPosition = Integer.parseInt(args[7]);
+
         IronSource.addImpressionDataListener(new ImpressionDataListener() {
             @Override
             public void onImpressionSuccess(ImpressionData impressionData) {
@@ -83,6 +90,7 @@ public class IronsourceAdsService implements IAdsService {
                 Log.d(TAG, "Reward: onAdOpened");
                 _isShowingRewardAds = true;
                 _adsEventListener.onVideoRewardDisplayed();
+                IncreaseBlockAutoShowInter();
             }
 
             // The Rewarded Video ad view is about to be closed. Your activity will regain its focus
@@ -269,12 +277,12 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     @Override
-    public void ShowBanner(Activity activity, int screenCode) {
+    public void ShowBanner(Activity activity) {
         LoadNormalBanner(activity);
     }
 
     @Override
-    public void HideBanner(int screenCode) {
+    public void HideBanner() {
         Log.d(TAG, "StopBottomBanner");
         if (mBannerContainer != null && mIronSourceBannerLayout != null) {
             mBannerContainer.setVisibility(View.GONE);
@@ -291,11 +299,32 @@ public class IronsourceAdsService implements IAdsService {
 
     @Override
     public void HideMREC() {
+        Log.d(TAG, "HideMREC");
         if (mRECParentContainer != null && mIronSourceRECBannerLayout != null) {
             mRECParentContainer.setVisibility(View.GONE);
             IronSource.destroyBanner(mIronSourceRECBannerLayout);
             mIronSourceRECBannerLayout = null;
         }
+    }
+
+    @Override
+    public void ShowNativeMREC(Activity activity) {
+
+    }
+
+    @Override
+    public void HideNativeMREC() {
+
+    }
+
+    @Override
+    public void ShowNativeBanner(Activity activity) {
+
+    }
+
+    @Override
+    public void HideNativeBanner() {
+
     }
 
     @Override
@@ -306,6 +335,12 @@ public class IronsourceAdsService implements IAdsService {
     @Override
     public void onResume(Activity activity) {
         IronSource.onResume(activity);
+
+        Log.d(TAG, "onResume blockAutoShowInterCount: " + blockAutoShowInterCount);
+        if (blockAutoShowInterCount > 0) {
+            DecreaseBlockAutoShowInter();
+            return;
+        }
         showOpenAppAdIfReady();
     }
 
@@ -316,12 +351,15 @@ public class IronsourceAdsService implements IAdsService {
 
     @Override
     public void IncreaseBlockAutoShowInter() {
-
+        Log.d(TAG, "IncreaseBlockAutoShowInter ");
+        blockAutoShowInterCount += 1;
     }
 
     @Override
     public void DecreaseBlockAutoShowInter() {
-
+        Log.d(TAG, "DecreaseBlockAutoShowInter ");
+        blockAutoShowInterCount -= 1;
+        if (blockAutoShowInterCount < 0) blockAutoShowInterCount = 0;
     }
 
     private void LoadNormalBanner(Activity activity) {
@@ -375,9 +413,9 @@ public class IronsourceAdsService implements IAdsService {
             // wrap banner height
 //            int height = ViewGroup.LayoutParams.WRAP_CONTENT;
             int height = activity.getResources().getDimensionPixelSize(R.dimen.banner_height);
-
+            int gravity = _bannerPosition == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
             mBannerContainer = new FrameLayout(activity.getApplicationContext());
-            mBannerContainer.setLayoutParams(new FrameLayout.LayoutParams(width, height, Gravity.BOTTOM));
+            mBannerContainer.setLayoutParams(new FrameLayout.LayoutParams(width, height, gravity));
 
             // add IronSourceBanner to your container
             FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
@@ -427,9 +465,10 @@ public class IronsourceAdsService implements IAdsService {
         };
 
         mRECParentContainer = new FrameLayout(activity.getApplicationContext());
+        int gravity = _mrecPosition == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
         FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        layoutParams.setMargins(0, 0, 0, 10);
+                FrameLayout.LayoutParams.WRAP_CONTENT, gravity);
+        layoutParams.setMargins(0, 0, 0, 0);
         mRECParentContainer.setLayoutParams(layoutParams);
         mRECParentContainer.setVisibility(View.VISIBLE);
 
