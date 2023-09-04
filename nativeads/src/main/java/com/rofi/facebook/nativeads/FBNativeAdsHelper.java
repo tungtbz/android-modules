@@ -13,6 +13,7 @@ import android.widget.LinearLayout;
 import com.facebook.ads.Ad;
 import com.facebook.ads.AdError;
 import com.facebook.ads.AudienceNetworkAds;
+import com.facebook.ads.MediaView;
 import com.facebook.ads.NativeAd;
 import com.facebook.ads.NativeAdBase;
 import com.facebook.ads.NativeAdListener;
@@ -120,6 +121,10 @@ public class FBNativeAdsHelper implements NativeAdListener {
 
         // Render the Native Ad Template
         View adView = NativeAdView.render(_activity, nativeAd);
+        MediaView nativeAdMedia = adView.findViewById(R.id.native_ad_media);
+        MediaView nativeAdIcon = adView.findViewById(R.id.native_ad_icon);
+
+        nativeAd.registerViewForInteraction(adView, nativeAdMedia, nativeAdIcon);
         mNativeAdsContainer.addView(adView, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT));
     }
 
