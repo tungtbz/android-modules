@@ -17,7 +17,7 @@ https://gist.github.com/tungtbz/97e3d7641062e1775a12bd1017fb0473
 
 https://gist.github.com/tungtbz/19d50bb212a257ee30be351c86e4c9cd
 
-Step2:
+# Step2:
 Sau khi build game thì mở AndroidStudio và chỉnh sửa file string.xml
 - chỉnh sửa key ads_main_network theo mạng quảng cáo đang dùng (applovin,ironSource)
 - chỉnh sửa key banner_position và mrec_possition (0 = top, 1 = bottom)
