@@ -17,6 +17,7 @@ import com.applovin.mediation.MaxError;
 import com.applovin.mediation.MaxReward;
 import com.applovin.mediation.MaxRewardedAdListener;
 import com.applovin.mediation.ads.MaxAdView;
+import com.applovin.mediation.ads.MaxAppOpenAd;
 import com.applovin.mediation.ads.MaxInterstitialAd;
 import com.applovin.mediation.ads.MaxRewardedAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdListener;
@@ -76,12 +77,16 @@ public class MaxAdsService implements IAdsService {
     private String _mrecAdId;
     private String _nativeRectAdId;
     private String _nativeSmallAdId;
+    private String _openAdsId;
 
     private int _bannerPosition;
     private int _mrecPosition;
 
     private Activity _activity;
     private int blockAutoShowInterCount;
+
+
+    private MaxAppOpenAd appOpenAd;
 
     @Override
     public void Init(Activity activity, String[] args) {
@@ -100,6 +105,9 @@ public class MaxAdsService implements IAdsService {
 
         _bannerPosition = Integer.parseInt(args[6]);
         _mrecPosition = Integer.parseInt(args[7]);
+
+        if (args.length >= 9)
+            _openAdsId = args[8];
 
         mRectBannerState = 0;
         mRectShowFlag = 1;
@@ -608,7 +616,9 @@ public class MaxAdsService implements IAdsService {
 
     @Override
     public boolean IsInterReady() {
-        if (mInterstitialAd == null) return false;
+        if (mInterstitialAd == null) {
+            return false;
+        }
         return mInterstitialAd.isReady();
     }
 
@@ -694,6 +704,7 @@ public class MaxAdsService implements IAdsService {
 
     @Override
     public void HideMREC() {
+        Log.d(TAG, "HideMREC");
         if (mRectBannerState == 2 && rectAdView != null) {
             rectAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
             rectAdView.stopAutoRefresh();
@@ -848,5 +859,78 @@ public class MaxAdsService implements IAdsService {
         Log.d(TAG, "DecreaseBlockAutoShowInter ");
         blockAutoShowInterCount -= 1;
         if (blockAutoShowInterCount < 0) blockAutoShowInterCount = 0;
+    }
+
+    @Override
+    public void LoadOpenAppAds(Activity activity) {
+        Log.d(TAG, "OpenAppAds " + _openAdsId);
+        appOpenAd = new MaxAppOpenAd(_openAdsId, activity.getApplicationContext());
+
+        appOpenAd.setRevenueListener(maxAd -> {
+        });
+
+        appOpenAd.setListener(new MaxAdViewAdListener() {
+            @Override
+            public void onAdExpanded(MaxAd maxAd) {
+
+            }
+
+            @Override
+            public void onAdCollapsed(MaxAd maxAd) {
+
+            }
+
+            @Override
+            public void onAdLoaded(MaxAd maxAd) {
+                Log.d(TAG, "Open App On Ad Loaded!");
+            }
+
+            @Override
+            public void onAdDisplayed(MaxAd maxAd) {
+
+            }
+
+            @Override
+            public void onAdHidden(MaxAd maxAd) {
+
+            }
+
+            @Override
+            public void onAdClicked(MaxAd maxAd) {
+
+            }
+
+            @Override
+            public void onAdLoadFailed(String s, MaxError maxError) {
+                Log.d(TAG, "Open App On Ad LoadFailed!");
+            }
+
+            @Override
+            public void onAdDisplayFailed(MaxAd maxAd, MaxError maxError) {
+                Log.d(TAG, "Open App On Ad Display Failed!");
+            }
+        });
+
+        //
+        appOpenAd.loadAd();
+    }
+
+    @Override
+    public void ShowOpenAppAds(Activity activity) {
+        if (appOpenAd == null || !AppLovinSdk.getInstance(activity.getApplicationContext()).isInitialized())
+            return;
+
+        if (appOpenAd.isReady()) {
+            Log.d(TAG, "ShowOpenAppAds ");
+            appOpenAd.showAd();
+        }
+    }
+
+    @Override
+    public boolean IsOpenAppAdsAvailable() {
+        if (appOpenAd == null)
+            return false;
+
+        return appOpenAd.isReady();
     }
 }

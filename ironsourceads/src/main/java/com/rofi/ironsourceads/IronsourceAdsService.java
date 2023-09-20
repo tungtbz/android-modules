@@ -368,6 +368,21 @@ public class IronsourceAdsService implements IAdsService {
         if (blockAutoShowInterCount < 0) blockAutoShowInterCount = 0;
     }
 
+    @Override
+    public void LoadOpenAppAds(Activity activity) {
+
+    }
+
+    @Override
+    public void ShowOpenAppAds(Activity activity) {
+
+    }
+
+    @Override
+    public boolean IsOpenAppAdsAvailable() {
+        return false;
+    }
+
     private void LoadNormalBanner(Activity activity) {
 
         if (mBannerContainer == null) {

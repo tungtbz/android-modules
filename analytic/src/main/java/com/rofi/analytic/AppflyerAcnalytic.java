@@ -1,6 +1,7 @@
 package com.rofi.analytic;
 
 import android.app.Activity;
+import android.util.Log;
 
 import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.adrevenue.AppsFlyerAdRevenue;
@@ -15,7 +16,9 @@ import java.util.Locale;
 import java.util.Map;
 
 public class AppflyerAcnalytic implements IAnalytic {
+    private final String TAG = AppflyerAcnalytic.class.toString();
     String _mainNetwork;
+
     @Override
     public void Init(Activity activity, String[] args) {
 
@@ -28,6 +31,7 @@ public class AppflyerAcnalytic implements IAnalytic {
         AppsFlyerAdRevenue.Builder afRevenueBuilder = new AppsFlyerAdRevenue.Builder(activity.getApplication());
         AppsFlyerAdRevenue.initialize(afRevenueBuilder.build());
     }
+
     @Override
     public void LogEvent(Activity activity, String eventName, String eventData) {
         Map<String, Object> appflyerEventData = new HashMap<String, Object>();
@@ -43,11 +47,14 @@ public class AppflyerAcnalytic implements IAnalytic {
 
     @Override
     public void RevenueTracking(Activity activity, String adFormat, String adUnitId, String adNetwork, double value) {
-        MediationNetwork mediationNetwork = GetMediationNetwork(adNetwork);
+        MediationNetwork mediationNetwork = GetMediationNetwork(_mainNetwork);
         Map<String, String> customParams = new HashMap<>();
         customParams.put(Scheme.AD_UNIT, adUnitId);
         customParams.put(Scheme.AD_TYPE, adFormat);
-        AppsFlyerAdRevenue.logAdRevenue(_mainNetwork, mediationNetwork, Currency.getInstance(Locale.US), value, customParams);
+
+        AppsFlyerAdRevenue.logAdRevenue(adNetwork, mediationNetwork, Currency.getInstance(Locale.US), value, customParams);
+
+        Log.d(TAG, "RevenueTracking, monetization_network: " + adNetwork + " ,mediation_network: " + mediationNetwork + " ad type: " + adFormat);
     }
 
     private MediationNetwork GetMediationNetwork(String networkName) {
@@ -57,9 +64,10 @@ public class AppflyerAcnalytic implements IAnalytic {
         if (networkName.contains("Char")) return MediationNetwork.chartboost;
         if (networkName.contains("App")) return MediationNetwork.applovinmax;
         if (networkName.contains("Fyber")) return MediationNetwork.fyber;
+        if (networkName.contains("applovin")) return MediationNetwork.applovinmax;
+        if (networkName.contains("iron")) return MediationNetwork.ironsource;
 
-        if(_mainNetwork.contains("applovin")) return MediationNetwork.applovinmax;
-        return MediationNetwork.ironsource;
+        return MediationNetwork.customMediation;
     }
 
     @Override

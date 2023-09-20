@@ -78,10 +78,10 @@ public class AnalyticServices {
         editor.putInt(Constants.SHOW_INTER_ADS_COUNT, _showInterAdsCount);
         editor.apply();
 
-        if (_showInterAdsCount == 5 || _showInterAdsCount == 10 || _showInterAdsCount == 15) {
+        if (_showInterAdsCount >= 1 && _showInterAdsCount <= 20) {
             String eventName = String.format(Constants.SHOW_INTER_ADS_EVENT_NAME, _showInterAdsCount);
             AnalyticServices.getInstance().LogEvent(_activityCached, eventName, null);
-            Log.d(TAG, "LogEvent: " + eventName);
+//            Log.d(TAG, "LogEvent: " + eventName);
         }
     }
 }

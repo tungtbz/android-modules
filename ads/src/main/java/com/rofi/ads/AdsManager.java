@@ -8,6 +8,8 @@ public class AdsManager {
     private static AdsManager mInstance = null;
     private IAdsService _adsService;
 
+    private boolean _isReadyToShowInter;
+
     public static AdsManager getInstance() {
         if (null == mInstace) {
             mInstace = new AdsManager();
@@ -16,10 +18,19 @@ public class AdsManager {
     }
 
     public void Init(IAdsService adsService) {
+        _isReadyToShowInter = false;
         _adsService = adsService;
     }
 
     public IAdsService GetService() {
         return _adsService;
+    }
+
+    public void OnReadyToShowInter() {
+        _isReadyToShowInter = true;
+    }
+
+    public boolean IsReadyToShowInter() {
+        return _isReadyToShowInter;
     }
 }

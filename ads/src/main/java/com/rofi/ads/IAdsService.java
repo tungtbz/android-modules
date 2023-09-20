@@ -44,4 +44,10 @@ public interface IAdsService {
     void IncreaseBlockAutoShowInter();
 
     void DecreaseBlockAutoShowInter();
+
+    void LoadOpenAppAds(Activity activity);
+
+    void ShowOpenAppAds(Activity activity);
+
+    boolean IsOpenAppAdsAvailable();
 }
