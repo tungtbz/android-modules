@@ -5,7 +5,6 @@ import android.app.Activity;
 public class AdsManager {
     private static AdsManager mInstace = null;
     private final String TAG = "AdsManager";
-    private static AdsManager mInstance = null;
     private IAdsService _adsService;
 
     private boolean _isReadyToShowInter;

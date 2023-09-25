@@ -69,6 +69,12 @@ public class AnalyticServices {
         Log.d(TAG, "LoadLocalData: _showInterAdsCount: " + _showInterAdsCount);
     }
 
+    public void AdmobAppOpenAdsRevenueTracking(Activity activity, String adSourceName, String adUnitId, double value) {
+        for (IAnalytic analytic : analyticList) {
+            analytic.AdmobAppOpenAdsRevenueTracking(activity, adSourceName, adUnitId, value);
+        }
+    }
+
     public void OnShowInter() {
         _showInterAdsCount += 1;
         Log.d(TAG, "OnShowInter: " + _showInterAdsCount);

@@ -1,12 +1,14 @@
 package com.rofi.analytic;
 
 import android.app.Activity;
+import android.os.Bundle;
 import android.util.Log;
 
 import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.adrevenue.AppsFlyerAdRevenue;
 import com.appsflyer.adrevenue.adnetworks.generic.MediationNetwork;
 import com.appsflyer.adrevenue.adnetworks.generic.Scheme;
+import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -75,5 +77,18 @@ public class AppflyerAcnalytic implements IAnalytic {
         Map<String, Object> eventValues = new HashMap<String, Object>();
         eventValues.put("adUnitId", adUnitId);
         AppsFlyerLib.getInstance().logEvent(activity.getApplicationContext(), "ad_click", eventValues);
+    }
+
+    @Override
+    public void AdmobAppOpenAdsRevenueTracking(Activity activity, String adSourceName, String adUnitId, double value) {
+        Map<String, String> customParams = new HashMap<>();
+        customParams.put("ad_platform", "Admob");
+        customParams.put("ad_source", adSourceName);
+        customParams.put("ad_unit_name", "");
+        customParams.put(Scheme.AD_UNIT, adUnitId);
+        customParams.put(Scheme.AD_TYPE, "AppOpenAds");
+
+        AppsFlyerAdRevenue.logAdRevenue(adSourceName, MediationNetwork.googleadmob, Currency.getInstance(Locale.US), value, customParams);
+
     }
 }

@@ -23,7 +23,7 @@ public class FirebaseAnalytic implements IAnalytic {
     public void LogEvent(Activity activity, String eventName, String eventData) {
         Bundle bundle = new Bundle();
 
-        if(eventData != null){
+        if (eventData != null) {
             Map<String, Object> mapEventData = new Gson().fromJson(
                     eventData, new TypeToken<HashMap<String, Object>>() {
                     }.getType()
@@ -54,5 +54,17 @@ public class FirebaseAnalytic implements IAnalytic {
         Bundle params = new Bundle();
         params.putString(FirebaseAnalytics.Param.AD_UNIT_NAME, adUnitId);
         mFirebaseAnalytics.logEvent("ad_click", params);
+    }
+
+    @Override
+    public void AdmobAppOpenAdsRevenueTracking(Activity activity, String adSourceName, String adUnitId, double value) {
+        Bundle params = new Bundle();
+        params.putString(FirebaseAnalytics.Param.AD_PLATFORM, "Admob");
+        params.putString(FirebaseAnalytics.Param.AD_SOURCE, adSourceName);
+        params.putString(FirebaseAnalytics.Param.AD_FORMAT, "AppOpenAds");
+        params.putString(FirebaseAnalytics.Param.AD_UNIT_NAME, adUnitId);
+        params.putDouble(FirebaseAnalytics.Param.VALUE, value);
+        params.putString(FirebaseAnalytics.Param.CURRENCY, "USD"); // All Applovin revenue is sent in USD
+        mFirebaseAnalytics.logEvent(FirebaseAnalytics.Event.AD_IMPRESSION, params);
     }
 }
