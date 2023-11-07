@@ -347,6 +347,8 @@ public class IronsourceAdsService implements IAdsService {
             DecreaseBlockAutoShowInter();
             return;
         }
+        if (_isDisableResumeAds) return;
+
         showOpenAppAdIfReady();
     }
 
@@ -381,6 +383,18 @@ public class IronsourceAdsService implements IAdsService {
     @Override
     public boolean IsOpenAppAdsAvailable() {
         return false;
+    }
+
+    private boolean _isDisableResumeAds;
+
+    @Override
+    public void DisableResumeAds() {
+        _isDisableResumeAds = true;
+    }
+
+    @Override
+    public void EnableResumeAds() {
+        _isDisableResumeAds = false;
     }
 
     private void LoadNormalBanner(Activity activity) {
@@ -543,5 +557,16 @@ public class IronsourceAdsService implements IAdsService {
         String adUnitId = impressionData.getInstanceName();
 
         _adsEventListener.onAdRevenuePaid(adFormatStr, adUnitId, networkName, revenue);
+    }
+
+    private boolean _isDisableInterAds;
+    @Override
+    public void DisableInterAds() {
+        _isDisableInterAds = true;
+    }
+
+    @Override
+    public void EnableInterAds() {
+        _isDisableInterAds = false;
     }
 }

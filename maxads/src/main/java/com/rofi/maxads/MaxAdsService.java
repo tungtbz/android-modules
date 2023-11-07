@@ -32,6 +32,9 @@ import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
 import com.rofi.remoteconfig.FirebaseRemoteConfigService;
 
+import java.util.Date;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
 public class MaxAdsService implements IAdsService {
@@ -87,6 +90,11 @@ public class MaxAdsService implements IAdsService {
 
 
     private MaxAppOpenAd appOpenAd;
+    private long _finishInterAdsTime = 0;
+    int coolDownShowInterInSecond;
+    boolean isShowingFullscreenAds;
+
+    private Timer timer;
 
     @Override
     public void Init(Activity activity, String[] args) {
@@ -140,6 +148,7 @@ public class MaxAdsService implements IAdsService {
             DecreaseBlockAutoShowInter();
             return;
         }
+        if (_isDisableResumeAds) return;
 
         ShowResumeAds();
     }
@@ -177,6 +186,10 @@ public class MaxAdsService implements IAdsService {
             @Override
             public void onRewardedVideoStarted(MaxAd ad) {
                 Log.d(TAG, "onRewardedVideoStarted: ============================");
+                isShowingFullscreenAds = true;
+                if (blockAutoShowInterCount <= 0) {
+                    IncreaseBlockAutoShowInter();
+                }
             }
 
             @Override
@@ -207,7 +220,6 @@ public class MaxAdsService implements IAdsService {
 //                AnalyticServices.getInstance().LogEvent(UnityPlayer.currentActivity, "af_rewarded_ad_displayed", null);
                 _adsAdsEventListener.onVideoRewardDisplayed();
                 Log.d(TAG, "video reward onAdDisplayed: =============================");
-                isCoolDownShowInter = true;
                 IncreaseBlockAutoShowInter();
             }
 
@@ -216,12 +228,16 @@ public class MaxAdsService implements IAdsService {
                 // rewarded ad is hidden. Pre-load the next ad
                 Log.d(TAG, "video reward onAdHidden: =============================");
                 mRewardedAd.loadAd();
+                isShowingFullscreenAds = false;
 
-                ThreadUltils.startTask(() -> {
-                    // doTask
-                    isCoolDownShowInter = false;
-                    Log.d(TAG, "Inter Reset Cooldown");
-                }, 5 * 1000L);
+                if (!isCoolDownShowInter) {
+                    isCoolDownShowInter = true;
+                    ThreadUltils.startTask(() -> {
+                        // doTask
+                        isCoolDownShowInter = false;
+                        Log.d(TAG, "Inter Reset Cooldown");
+                    }, 5 * 1000L);
+                }
             }
 
             @Override
@@ -309,13 +325,17 @@ public class MaxAdsService implements IAdsService {
                 }
 
                 Log.d(TAG, "Inter: onAdHidden Normal");
-                int coolDownShowInterInSencond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
-                ThreadUltils.startTask(() -> {
-                    // doTask
-                    isCoolDownShowInter = false;
-                    mCurrentInterRequestCode = 0;
-                    Log.d(TAG, "Inter: onAdHidden Reset Cooldown");
-                }, coolDownShowInterInSencond * 1000L);
+
+                coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
+
+//                ThreadUltils.startTask(() -> {
+//                    // doTask
+//                    isCoolDownShowInter = false;
+//                    mCurrentInterRequestCode = 0;
+//                    Log.d(TAG, "Inter: onAdHidden Reset Cooldown");
+//                }, coolDownShowInterInSencond * 1000L);
+                RunCountDownToShowInter();
+
                 _adsAdsEventListener.onInterHidden(String.valueOf(mCurrentInterRequestCode));
             }
 
@@ -352,6 +372,32 @@ public class MaxAdsService implements IAdsService {
 
         // Load the first ad
         mInterstitialAd.loadAd();
+    }
+
+    private void RunCountDownToShowInter() {
+        timer = new Timer();
+        timer.schedule(new TimerTask() {
+            public void run() {
+                // do your work
+                if (coolDownShowInterInSecond <= 0) {
+                    timer.cancel();
+
+                    isCoolDownShowInter = false;
+                    mCurrentInterRequestCode = 0;
+                    Log.d(TAG, "RunCountDownToShowInter: Reset Cooldown");
+                    return;
+                }
+
+                if (isShowingFullscreenAds) {
+                    Log.d(TAG, "RunCountDownToShowInter  isShowingFullscreenAds --> skip");
+                    return;
+                }
+
+                Log.d(TAG, "RunCountDownToShowInter ");
+                coolDownShowInterInSecond -= 1;
+
+            }
+        }, 0, 1000);
     }
 
     private void LoadMREC(Activity activity, int position) {
@@ -438,71 +484,6 @@ public class MaxAdsService implements IAdsService {
         String adUnitId = ad.getAdUnitId(); // The MAX Ad Unit ID
         String adFormatStr = ad.getFormat().getLabel();
         _adsAdsEventListener.onAdRevenuePaid(adFormatStr, adUnitId, networkName, revenue);
-    }
-
-    private void InitNativeBannerAds(Activity activity, int position) {
-        //prepare container
-        mNativeBannerAdsContainer = new FrameLayout(activity);
-        int widthPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 360);
-        int heightPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 120);
-
-        int gravity = position == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-        mNativeBannerAdsContainer.setLayoutParams(new FrameLayout.LayoutParams(widthPx, heightPx, gravity));
-
-        ViewGroup rootView = activity.findViewById(android.R.id.content);
-        rootView.addView(mNativeBannerAdsContainer);
-
-        //init ads
-//        String adsKey = activity.getResources().getString(R.string.applovin_native_small);
-        nativeBannerAdLoader = new MaxNativeAdLoader(_nativeSmallAdId, activity.getApplicationContext());
-        nativeBannerAdLoader.setRevenueListener(new MaxAdRevenueListener() {
-            @Override
-            public void onAdRevenuePaid(MaxAd ad) {
-                LogRevenue(ad);
-            }
-        });
-
-        nativeBannerAdLoader.setNativeAdListener(new MaxNativeAdListener() {
-            @Override
-            public void onNativeAdLoaded(final MaxNativeAdView nativeAdView, final MaxAd ad) {
-                // Clean up any pre-existing native ad to prevent memory leaks.
-                Log.d(TAG, "onNativeAdLoaded ");
-                mRetryAttemptNativeAds = 0;
-                if (nativeBannerAd != null) {
-                    nativeBannerAdLoader.destroy(nativeBannerAd);
-                }
-
-                // Save ad for cleanup.
-                nativeBannerAd = ad;
-
-                // Add ad view to view.
-                mNativeBannerAdsContainer.removeAllViews();
-                mNativeBannerAdsContainer.addView(nativeAdView);
-            }
-
-            @Override
-            public void onNativeAdLoadFailed(final String adUnitId, final MaxError error) {
-                // We recommend retrying with exponentially higher delays up to a maximum delay
-                Log.d(TAG, "onNativeAdLoadFailed ");
-                mRetryAttemptNativeBannerAds++;
-                long delayMillis = TimeUnit.SECONDS.toMillis((long) Math.pow(2, Math.min(6, mRetryAttemptNativeBannerAds)));
-
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        nativeBannerAdLoader.loadAd();
-                    }
-                }, delayMillis);
-
-            }
-
-            @Override
-            public void onNativeAdClicked(final MaxAd ad) {
-                // Optional click callback
-            }
-        });
-
-        nativeBannerAdLoader.loadAd();
     }
 
     private void ShowNormalBanner(Activity activity, int position) {
@@ -616,6 +597,10 @@ public class MaxAdsService implements IAdsService {
 
     @Override
     public boolean IsInterReady() {
+        if (_isDisableInterAds) {
+            Log.d(TAG, "Inter Ads Is Disabled");
+            return false;
+        }
         if (mInterstitialAd == null) {
             return false;
         }
@@ -635,6 +620,10 @@ public class MaxAdsService implements IAdsService {
     @Override
     public void ShowInter(int requestCode) {
         Log.d(TAG, "ShowInter: " + requestCode);
+        if (_isDisableInterAds) {
+            Log.d(TAG, "Inter Ads Is Disabled");
+            return;
+        }
         //force show inter ads
         if (requestCode == 1) {
             if (IsInterReady()) {
@@ -763,6 +752,71 @@ public class MaxAdsService implements IAdsService {
         }
     }
 
+    private void InitNativeBannerAds(Activity activity, int position) {
+        //prepare container
+        mNativeBannerAdsContainer = new FrameLayout(activity);
+        int widthPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 360);
+        int heightPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 120);
+
+        int gravity = position == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+        mNativeBannerAdsContainer.setLayoutParams(new FrameLayout.LayoutParams(widthPx, heightPx, gravity));
+
+        ViewGroup rootView = activity.findViewById(android.R.id.content);
+        rootView.addView(mNativeBannerAdsContainer);
+
+        nativeBannerAdLoader = new MaxNativeAdLoader(_nativeSmallAdId, activity.getApplicationContext());
+        nativeBannerAdLoader.setRevenueListener(new MaxAdRevenueListener() {
+            @Override
+            public void onAdRevenuePaid(MaxAd ad) {
+                LogRevenue(ad);
+            }
+        });
+
+        nativeBannerAdLoader.setNativeAdListener(new MaxNativeAdListener() {
+            @Override
+            public void onNativeAdLoaded(final MaxNativeAdView nativeAdView, final MaxAd ad) {
+                // Clean up any pre-existing native ad to prevent memory leaks.
+                Log.d(TAG, "InitNativeBannerAds ");
+                Log.d(TAG, "InitNativeBannerAds x: " + (nativeAdView == null));
+                Log.d(TAG, "InitNativeBannerAds y: " + (mNativeBannerAdsContainer == null));
+                mRetryAttemptNativeAds = 0;
+                if (nativeBannerAd != null) {
+                    nativeBannerAdLoader.destroy(nativeBannerAd);
+                }
+
+                // Save ad for cleanup.
+                nativeBannerAd = ad;
+
+                // Add ad view to view.
+                mNativeBannerAdsContainer.removeAllViews();
+                mNativeBannerAdsContainer.addView(nativeAdView);
+            }
+
+            @Override
+            public void onNativeAdLoadFailed(final String adUnitId, final MaxError error) {
+                // We recommend retrying with exponentially higher delays up to a maximum delay
+                Log.d(TAG, "onNativeAdLoadFailed ");
+                mRetryAttemptNativeBannerAds++;
+                long delayMillis = TimeUnit.SECONDS.toMillis((long) Math.pow(2, Math.min(6, mRetryAttemptNativeBannerAds)));
+
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        nativeBannerAdLoader.loadAd();
+                    }
+                }, delayMillis);
+
+            }
+
+            @Override
+            public void onNativeAdClicked(final MaxAd ad) {
+                // Optional click callback
+            }
+        });
+
+        nativeBannerAdLoader.loadAd();
+    }
+
     //Native RECT
     private void LoadRectNativeAds(Activity activity, int position) {
         //prepare container
@@ -782,10 +836,10 @@ public class MaxAdsService implements IAdsService {
 
         ViewGroup rootView = activity.findViewById(android.R.id.content);
         rootView.addView(mNativeRectAdsContainer);
-        //init ads
-        String adsKey = activity.getResources().getString(R.string.applovin_native_ads_key);
 
-        nativeRectAdLoader = new MaxNativeAdLoader(adsKey, activity.getApplicationContext());
+        Log.d(TAG, "_nativeRectAdId " + _nativeRectAdId);
+        nativeRectAdLoader = new MaxNativeAdLoader(_nativeRectAdId, activity.getApplicationContext());
+
         nativeRectAdLoader.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -797,8 +851,13 @@ public class MaxAdsService implements IAdsService {
             @Override
             public void onNativeAdLoaded(final MaxNativeAdView nativeAdView, final MaxAd ad) {
                 // Clean up any pre-existing native ad to prevent memory leaks.
-                Log.d(TAG, "onNativeAdLoaded ");
+                Log.d(TAG, "LoadRectNativeAds ");
+                Log.d(TAG, "LoadRectNativeAds x: " + (nativeAdView == null));
+                Log.d(TAG, "LoadRectNativeAds z: " + (ad == null));
+                Log.d(TAG, "LoadRectNativeAds y: " + (mNativeRectAdsContainer == null));
+
                 mRetryAttemptNativeAds = 0;
+                
                 if (nativeRectAd != null) {
                     nativeRectAdLoader.destroy(nativeRectAd);
                 }
@@ -932,5 +991,30 @@ public class MaxAdsService implements IAdsService {
             return false;
 
         return appOpenAd.isReady();
+    }
+
+    private boolean _isDisableResumeAds;
+
+
+    @Override
+    public void DisableResumeAds() {
+        _isDisableResumeAds = true;
+    }
+
+    @Override
+    public void EnableResumeAds() {
+        _isDisableResumeAds = false;
+    }
+
+    private boolean _isDisableInterAds;
+
+    @Override
+    public void DisableInterAds() {
+        _isDisableInterAds = true;
+    }
+
+    @Override
+    public void EnableInterAds() {
+        _isDisableInterAds = false;
     }
 }

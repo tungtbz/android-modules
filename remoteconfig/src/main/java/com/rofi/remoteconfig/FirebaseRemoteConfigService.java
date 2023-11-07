@@ -49,7 +49,10 @@ public class FirebaseRemoteConfigService {
                                     @Override
                                     public void onComplete(@NonNull Task<Boolean> task) {
                                         if (task.isSuccessful()) {
+                                            Log.d(TAG, "fetchAndActivate Complete");
                                             CacheConfigs();
+                                        }else{
+                                            Log.d(TAG, "fetchAndActivate Failed");
                                         }
                                     }
                                 });
@@ -64,12 +67,6 @@ public class FirebaseRemoteConfigService {
 
     private void CacheConfigs() {
         Log.d(TAG, "CacheConfigs ~~~~~~~~~~~~~~~~");
-        map.clear();
-        map.put(Constants.RK_SHOW_INTER_1, mFirebaseRemoteConfig.getBoolean(Constants.RK_SHOW_INTER_1));
-        map.put(Constants.RK_SHOW_INTER_2, mFirebaseRemoteConfig.getBoolean(Constants.RK_SHOW_INTER_2));
-        map.put(Constants.RK_BANNER_TYPE, mFirebaseRemoteConfig.getDouble(Constants.RK_BANNER_TYPE));
-        map.put(Constants.RK_SHOW_RELOAD_ADS, mFirebaseRemoteConfig.getBoolean(Constants.RK_SHOW_RELOAD_ADS));
-        map.put(Constants.RK_SHOW_SETTING_ADS, mFirebaseRemoteConfig.getBoolean(Constants.RK_SHOW_SETTING_ADS));
     }
 
     public boolean GetBoolean(String key) {

@@ -10,10 +10,16 @@ import com.google.android.gms.ads.AdValue;
 import com.google.android.gms.ads.AdapterResponseInfo;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.OnPaidEventListener;
 import com.google.android.gms.ads.appopen.AppOpenAd;
+import com.google.android.ump.ConsentForm;
+import com.google.android.ump.ConsentInformation;
+import com.google.android.ump.ConsentRequestParameters;
+import com.google.android.ump.UserMessagingPlatform;
 
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AdmobHelper {
     private static AdmobHelper mInstance = null;
@@ -31,15 +37,57 @@ public class AdmobHelper {
     }
 
     String _appOpenAdsId;
+    private IAdmobAdListener adListener;
+    private ConsentInformation consentInformation;
+    // Use an atomic boolean to initialize the Google Mobile Ads SDK and load ads once.
+    private final AtomicBoolean isMobileAdsInitializeCalled = new AtomicBoolean(false);
+    private GoogleMobileAdsConsentManager googleMobileAdsConsentManager;
 
-    public void Init(Activity activity, String[] args) {
+    public void Init(Activity activity, IAdmobAdListener adListener, String[] args) {
         _appOpenAdsId = args[0];
+        this.adListener = adListener;
+    }
+
+    public void startConsentFlow(Activity activity, IGoogleConsentCallback consentCallback) {
+        googleMobileAdsConsentManager = GoogleMobileAdsConsentManager.getInstance(activity.getApplicationContext());
+
+        googleMobileAdsConsentManager.gatherConsent(
+                activity,
+                consentError -> {
+                    if (consentError != null) {
+                        // Consent not obtained in current session.
+                        Log.w(
+                                TAG,
+                                String.format(
+                                        "%s: %s", consentError.getErrorCode(), consentError.getMessage()));
+                    }
+
+                    if (googleMobileAdsConsentManager.canRequestAds()) {
+                        initializeMobileAdsSdk(activity);
+                    }
+
+                    Log.d(TAG, "Consent Flow: FINISH----------------------");
+                    if (consentCallback != null)
+                        consentCallback.onFinish();
+
+                });
+
+        // This sample attempts to load ads using consent obtained in the previous session.
+        if (googleMobileAdsConsentManager.canRequestAds()) {
+            initializeMobileAdsSdk(activity);
+        }
+    }
+
+    // Show a privacy options button if required.
+    public boolean isPrivacySettingsButtonEnabled() {
+        return consentInformation.getPrivacyOptionsRequirementStatus()
+                == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED;
     }
 
     /**
      * Request an ad.
      */
-    public void loadAd(Activity activity, IAdmobAdListener adListener) {
+    public void loadAd(Activity activity) {
         // Do not load ad if there is an unused ad or one is already loading.
         if (_isLoadingAd || isAdAvailable()) {
             return;
@@ -144,6 +192,7 @@ public class AdmobHelper {
                 Log.d(TAG, "Ad dismissed fullscreen content.");
                 _appOpenAd = null;
                 _isShowingAd = false;
+                adListener.onAdDismissed();
             }
 
             @Override
@@ -169,5 +218,14 @@ public class AdmobHelper {
 
         _isShowingAd = true;
         _appOpenAd.show(activity);
+    }
+
+    private void initializeMobileAdsSdk(Activity activity) {
+        if (isMobileAdsInitializeCalled.getAndSet(true)) {
+            return;
+        }
+
+        // Initialize the Google Mobile Ads SDK.
+        MobileAds.initialize(activity.getApplicationContext());
     }
 }

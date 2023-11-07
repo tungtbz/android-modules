@@ -50,4 +50,10 @@ public interface IAdsService {
     void ShowOpenAppAds(Activity activity);
 
     boolean IsOpenAppAdsAvailable();
+
+    void DisableResumeAds();
+    void EnableResumeAds();
+
+    void DisableInterAds();
+    void EnableInterAds();
 }
