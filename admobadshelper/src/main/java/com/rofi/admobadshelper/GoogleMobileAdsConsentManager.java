@@ -19,6 +19,15 @@ import com.google.android.ump.UserMessagingPlatform;
 public final class GoogleMobileAdsConsentManager {
     private static GoogleMobileAdsConsentManager instance;
     private final ConsentInformation consentInformation;
+    private boolean isConsentFlowFinished;
+
+    public boolean IsConsentFlowFinished() {
+        return isConsentFlowFinished;
+    }
+
+    public void bypassConsentFlow(){
+        isConsentFlowFinished = true;
+    }
 
     /**
      * Private constructor
@@ -72,10 +81,11 @@ public final class GoogleMobileAdsConsentManager {
                 // Check your logcat output for the hashed device ID e.g.
                 // "Use new ConsentDebugSettings.Builder().addTestDeviceHashedId("ABCDEF012345")" to use
                 // the debug functionality.
-                .addTestDeviceHashedId("TEST-DEVICE-HASHED-ID")
+//                .addTestDeviceHashedId("TEST-DEVICE-HASHED-ID")
                 .build();
 
         ConsentRequestParameters params = new ConsentRequestParameters.Builder()
+                .setTagForUnderAgeOfConsent(false)
                 .setConsentDebugSettings(debugSettings)
                 .build();
 
@@ -89,9 +99,13 @@ public final class GoogleMobileAdsConsentManager {
                                 formError -> {
                                     // Consent has been gathered.
                                     onConsentGatheringCompleteListener.consentGatheringComplete(formError);
+                                    isConsentFlowFinished = true;
                                 }),
-                requestConsentError ->
-                        onConsentGatheringCompleteListener.consentGatheringComplete(requestConsentError)
+                requestConsentError -> {
+                    onConsentGatheringCompleteListener.consentGatheringComplete(requestConsentError);
+                    isConsentFlowFinished = true;
+                }
+
         );
     }
 

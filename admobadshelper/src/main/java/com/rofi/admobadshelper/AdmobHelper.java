@@ -13,10 +13,7 @@ import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.OnPaidEventListener;
 import com.google.android.gms.ads.appopen.AppOpenAd;
-import com.google.android.ump.ConsentForm;
 import com.google.android.ump.ConsentInformation;
-import com.google.android.ump.ConsentRequestParameters;
-import com.google.android.ump.UserMessagingPlatform;
 
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,6 +25,7 @@ public class AdmobHelper {
     private boolean _isLoadingAd = false;
     private boolean _isShowingAd = false;
     private long loadTime = 0;
+    private int consentCode = -1;
 
     public static AdmobHelper getInstance() {
         if (null == mInstance) {
@@ -48,28 +46,41 @@ public class AdmobHelper {
         this.adListener = adListener;
     }
 
+    public void bypassConsentFlow(Activity activity) {
+        googleMobileAdsConsentManager = GoogleMobileAdsConsentManager.getInstance(activity.getApplicationContext());
+        googleMobileAdsConsentManager.bypassConsentFlow();
+        consentCode = 0;
+    }
+
+    public int getConsentCode() {
+        return consentCode;
+    }
+
     public void startConsentFlow(Activity activity, IGoogleConsentCallback consentCallback) {
         googleMobileAdsConsentManager = GoogleMobileAdsConsentManager.getInstance(activity.getApplicationContext());
-
         googleMobileAdsConsentManager.gatherConsent(
                 activity,
                 consentError -> {
                     if (consentError != null) {
+                        consentCode = 0;
                         // Consent not obtained in current session.
                         Log.w(
                                 TAG,
                                 String.format(
                                         "%s: %s", consentError.getErrorCode(), consentError.getMessage()));
+                        if (consentCallback != null) {
+                            consentCallback.onFinish(0);
+                        }
+                    } else {
+                        consentCode = 1;
+                        Log.d(TAG, "Consent Flow: FINISH----------------------");
+                        if (consentCallback != null)
+                            consentCallback.onFinish(1);
                     }
 
                     if (googleMobileAdsConsentManager.canRequestAds()) {
                         initializeMobileAdsSdk(activity);
                     }
-
-                    Log.d(TAG, "Consent Flow: FINISH----------------------");
-                    if (consentCallback != null)
-                        consentCallback.onFinish();
-
                 });
 
         // This sample attempts to load ads using consent obtained in the previous session.

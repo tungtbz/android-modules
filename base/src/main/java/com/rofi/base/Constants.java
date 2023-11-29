@@ -19,6 +19,7 @@ public class Constants {
 
     public static int INTER_ADS_REQ_CODE_1 = 1991;
     public static int INTER_ADS_REQ_CODE_2 = 1992;
+    public static final int RESUME_INTER_ADS = 17637;
 
     public static String RK_SHOW_INTER_1 = "show_inter_1";
     public static String RK_SHOW_INTER_2 = "show_inter_2";

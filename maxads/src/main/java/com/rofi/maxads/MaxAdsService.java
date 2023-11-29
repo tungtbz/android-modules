@@ -1,6 +1,9 @@
 package com.rofi.maxads;
 
+import static com.rofi.base.Constants.RESUME_INTER_ADS;
+
 import android.app.Activity;
+import android.content.Context;
 import android.graphics.Color;
 import android.os.Handler;
 import android.util.Log;
@@ -23,6 +26,7 @@ import com.applovin.mediation.ads.MaxRewardedAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdListener;
 import com.applovin.mediation.nativeAds.MaxNativeAdLoader;
 import com.applovin.mediation.nativeAds.MaxNativeAdView;
+import com.applovin.sdk.AppLovinPrivacySettings;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkConfiguration;
 import com.applovin.sdk.AppLovinSdkUtils;
@@ -32,7 +36,6 @@ import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
 import com.rofi.remoteconfig.FirebaseRemoteConfigService;
 
-import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +54,7 @@ public class MaxAdsService implements IAdsService {
 
     private int mCurrentVideoRewardRequestCode;
     private int mCurrentInterRequestCode;
-    private boolean mIsShowingAppOpenAd;
+    //    private boolean mIsShowingAppOpenAd;
     //0 not load
     //1 call load ad
     //2 ad loaded
@@ -92,7 +95,7 @@ public class MaxAdsService implements IAdsService {
     private MaxAppOpenAd appOpenAd;
     private long _finishInterAdsTime = 0;
     int coolDownShowInterInSecond;
-    boolean isShowingFullscreenAds;
+    boolean isFullscreenAdsShowing;
 
     private Timer timer;
 
@@ -114,11 +117,15 @@ public class MaxAdsService implements IAdsService {
         _bannerPosition = Integer.parseInt(args[6]);
         _mrecPosition = Integer.parseInt(args[7]);
 
-        if (args.length >= 9)
-            _openAdsId = args[8];
+        if (args.length >= 9) _openAdsId = args[8];
 
         mRectBannerState = 0;
         mRectShowFlag = 1;
+        Context context = activity.getApplicationContext();
+
+        AppLovinPrivacySettings.setHasUserConsent(true, context);
+        AppLovinPrivacySettings.setIsAgeRestrictedUser(false, context);
+        AppLovinPrivacySettings.setDoNotSell(false, context);
 
         AppLovinSdk.getInstance(activity.getApplicationContext()).setMediationProvider("max");
         AppLovinSdk.getInstance(activity.getApplicationContext()).getSettings().setVerboseLogging(BuildConfig.DEBUG);
@@ -143,6 +150,12 @@ public class MaxAdsService implements IAdsService {
 
     @Override
     public void onResume(Activity activity) {
+
+
+        ShowResumeAds();
+    }
+
+    private void ShowResumeAds() {
         Log.d(TAG, "onResume blockAutoShowInterCount: " + blockAutoShowInterCount);
         if (blockAutoShowInterCount > 0) {
             DecreaseBlockAutoShowInter();
@@ -150,23 +163,16 @@ public class MaxAdsService implements IAdsService {
         }
         if (_isDisableResumeAds) return;
 
-        ShowResumeAds();
-    }
+        boolean isShowResumeAds = FirebaseRemoteConfigService.getInstance().GetBoolean(Constants.RESUME_ADS_KEY);
+        if (!isShowResumeAds) return;
 
-    private void ShowResumeAds() {
-//        if (appOpenAd == null) return;
-        boolean showOpenAppAds = FirebaseRemoteConfigService.getInstance().GetBoolean(Constants.RESUME_ADS_KEY);
-        if (!showOpenAppAds) return;
         //resume from ads
         if (isInterAdClicked) {
             isInterAdClicked = false;
             return;
         }
 
-        mIsShowingAppOpenAd = true;
-
-        ShowInter(1);
-
+        ShowInter(RESUME_INTER_ADS);
     }
 
     //private
@@ -186,7 +192,8 @@ public class MaxAdsService implements IAdsService {
             @Override
             public void onRewardedVideoStarted(MaxAd ad) {
                 Log.d(TAG, "onRewardedVideoStarted: ============================");
-                isShowingFullscreenAds = true;
+                isFullscreenAdsShowing = true;
+
                 if (blockAutoShowInterCount <= 0) {
                     IncreaseBlockAutoShowInter();
                 }
@@ -228,8 +235,9 @@ public class MaxAdsService implements IAdsService {
                 // rewarded ad is hidden. Pre-load the next ad
                 Log.d(TAG, "video reward onAdHidden: =============================");
                 mRewardedAd.loadAd();
-                isShowingFullscreenAds = false;
+                isFullscreenAdsShowing = false;
 
+                //add some delay
                 if (!isCoolDownShowInter) {
                     isCoolDownShowInter = true;
                     ThreadUltils.startTask(() -> {
@@ -309,21 +317,23 @@ public class MaxAdsService implements IAdsService {
             public void onAdDisplayed(MaxAd ad) {
 
                 Log.d(TAG, "Inter: onAdDisplayed");
+                isFullscreenAdsShowing = true;
+
                 _adsAdsEventListener.onInterDisplayed();
-                isCoolDownShowInter = true;
+
             }
 
             @Override
             public void onAdHidden(MaxAd ad) {
+                isFullscreenAdsShowing = false;
+
                 // Interstitial ad is hidden. Pre-load the next ad
                 mInterstitialAd.loadAd();
-
-                if (mIsShowingAppOpenAd) {
-                    Log.d(TAG, "Inter: onAdHidden after show open app");
-                    mIsShowingAppOpenAd = false;
+                //check is ad resume
+                if (mCurrentInterRequestCode == RESUME_INTER_ADS) {
+                    Log.d(TAG, "Inter: ads resume Hidden ");
                     return;
                 }
-
                 Log.d(TAG, "Inter: onAdHidden Normal");
 
                 coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
@@ -375,6 +385,7 @@ public class MaxAdsService implements IAdsService {
     }
 
     private void RunCountDownToShowInter() {
+        isCoolDownShowInter = true;
         timer = new Timer();
         timer.schedule(new TimerTask() {
             public void run() {
@@ -388,7 +399,7 @@ public class MaxAdsService implements IAdsService {
                     return;
                 }
 
-                if (isShowingFullscreenAds) {
+                if (isFullscreenAdsShowing) {
                     Log.d(TAG, "RunCountDownToShowInter  isShowingFullscreenAds --> skip");
                     return;
                 }
@@ -620,16 +631,21 @@ public class MaxAdsService implements IAdsService {
     @Override
     public void ShowInter(int requestCode) {
         Log.d(TAG, "ShowInter: " + requestCode);
+
         if (_isDisableInterAds) {
-            Log.d(TAG, "Inter Ads Is Disabled");
+            Log.d(TAG, "Inter Ads Is Disabled !!!!!!!");
             return;
         }
-        //force show inter ads
-        if (requestCode == 1) {
+
+        if (isFullscreenAdsShowing) {
+            Log.d(TAG, "Other full screen ads is showing, wait !!!!!!");
+            return;
+        }
+
+        //show resume ads
+        if (requestCode == RESUME_INTER_ADS) {
             if (IsInterReady()) {
                 mInterstitialAd.showAd();
-            } else {
-                mIsShowingAppOpenAd = false;
             }
             Log.d(TAG, "ShowInter: check 1 ");
             return;
@@ -857,7 +873,7 @@ public class MaxAdsService implements IAdsService {
                 Log.d(TAG, "LoadRectNativeAds y: " + (mNativeRectAdsContainer == null));
 
                 mRetryAttemptNativeAds = 0;
-                
+
                 if (nativeRectAd != null) {
                     nativeRectAdLoader.destroy(nativeRectAd);
                 }
@@ -946,11 +962,21 @@ public class MaxAdsService implements IAdsService {
 
             @Override
             public void onAdDisplayed(MaxAd maxAd) {
+                Log.d(TAG, "Open App onAdDisplayed!");
+                isFullscreenAdsShowing = true;
 
             }
 
             @Override
             public void onAdHidden(MaxAd maxAd) {
+                Log.d(TAG, "Open App onAdHidden!");
+
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        isFullscreenAdsShowing = false;
+                    }
+                }, 2 * 1000);
 
             }
 
@@ -987,8 +1013,7 @@ public class MaxAdsService implements IAdsService {
 
     @Override
     public boolean IsOpenAppAdsAvailable() {
-        if (appOpenAd == null)
-            return false;
+        if (appOpenAd == null) return false;
 
         return appOpenAd.isReady();
     }

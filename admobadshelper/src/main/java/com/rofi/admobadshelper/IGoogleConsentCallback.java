@@ -1,5 +1,5 @@
 package com.rofi.admobadshelper;
 
 public interface IGoogleConsentCallback {
-    void onFinish();
+    void onFinish(int reason);
 }
