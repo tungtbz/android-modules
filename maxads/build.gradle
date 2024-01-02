@@ -27,6 +27,9 @@ android {
 
 dependencies {
     implementation 'com.applovin:applovin-sdk:+'
+    implementation 'com.applovin.mediation:amazon-tam-adapter:+'
+    implementation 'com.amazon.android:aps-sdk:+'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation project(':base')
     implementation project(':remoteconfig')
     implementation project(':ads')

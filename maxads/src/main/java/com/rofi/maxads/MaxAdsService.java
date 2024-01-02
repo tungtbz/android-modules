@@ -12,6 +12,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import androidx.annotation.NonNull;
+
+import com.amazon.device.ads.AdError;
+import com.amazon.device.ads.DTBAdCallback;
+import com.amazon.device.ads.DTBAdResponse;
 import com.applovin.mediation.MaxAd;
 import com.applovin.mediation.MaxAdFormat;
 import com.applovin.mediation.MaxAdRevenueListener;
@@ -64,7 +69,7 @@ public class MaxAdsService implements IAdsService {
     private int mRectShowFlag;
 
     private boolean isCoolDownShowInter;
-    private boolean isInterAdClicked;
+    private boolean isClickToAds;
 
     private int mRetryAttemptNativeAds;
 
@@ -85,6 +90,12 @@ public class MaxAdsService implements IAdsService {
     private String _nativeSmallAdId;
     private String _openAdsId;
 
+    private boolean _apsEnable;
+    private String _apsAppId;
+    private String _apsBannerId;
+    private String _apsMRECId;
+    private String _apsInterId;
+
     private int _bannerPosition;
     private int _mrecPosition;
 
@@ -96,8 +107,12 @@ public class MaxAdsService implements IAdsService {
     private long _finishInterAdsTime = 0;
     int coolDownShowInterInSecond;
     boolean isFullscreenAdsShowing;
+    boolean isMRECLoaded;
+    boolean isMRECLoading;
 
     private Timer timer;
+
+    private AmazonAdsService _maxAmazonAdsService;
 
     @Override
     public void Init(Activity activity, String[] args) {
@@ -118,6 +133,25 @@ public class MaxAdsService implements IAdsService {
         _mrecPosition = Integer.parseInt(args[7]);
 
         if (args.length >= 9) _openAdsId = args[8];
+        _apsEnable = false;
+        //aps
+        if (args.length >= 12) {
+
+            _apsAppId = args[9];
+            _apsBannerId = args[10];
+            _apsMRECId = args[11];
+            _apsInterId = args[12];
+            if (_apsAppId != null && !_apsAppId.equals("")) {
+                _apsEnable = true;
+                Log.d(TAG, "APS _apsAppId:" + _apsAppId);
+                Log.d(TAG, "APS _apsBannerId:" + _apsBannerId);
+                Log.d(TAG, "APS Banner:" + _apsInterId);
+                Log.d(TAG, "APS _apsMRECId:" + _apsMRECId);
+
+                _maxAmazonAdsService = new AmazonAdsService();
+                _maxAmazonAdsService.Init(activity, _apsAppId);
+            }
+        }
 
         mRectBannerState = 0;
         mRectShowFlag = 1;
@@ -131,10 +165,6 @@ public class MaxAdsService implements IAdsService {
         AppLovinSdk.getInstance(activity.getApplicationContext()).getSettings().setVerboseLogging(BuildConfig.DEBUG);
         AppLovinSdk.getInstance(activity.getApplicationContext()).getSettings().setCreativeDebuggerEnabled(BuildConfig.DEBUG);
 
-        if (BuildConfig.DEBUG) {
-            AppLovinSdk.getInstance(activity.getApplicationContext()).showMediationDebugger();
-        }
-
         AppLovinSdk.initializeSdk(activity.getApplicationContext(), new AppLovinSdk.SdkInitializationListener() {
             @Override
             public void onSdkInitialized(final AppLovinSdkConfiguration configuration) {
@@ -142,17 +172,21 @@ public class MaxAdsService implements IAdsService {
 
                 InitVideoRewardAds(_activity);
                 InitInterAds(_activity);
+
 //                //cache MREC
                 LoadMREC(_activity, _mrecPosition);
+
+                if (BuildConfig.DEBUG) {
+                    AppLovinSdk.getInstance(activity.getApplicationContext()).showMediationDebugger();
+                }
             }
         });
     }
 
     @Override
     public void onResume(Activity activity) {
-
-
         ShowResumeAds();
+        setBannerMrecToFront();
     }
 
     private void ShowResumeAds() {
@@ -167,8 +201,8 @@ public class MaxAdsService implements IAdsService {
         if (!isShowResumeAds) return;
 
         //resume from ads
-        if (isInterAdClicked) {
-            isInterAdClicked = false;
+        if (isClickToAds) {
+            isClickToAds = false;
             return;
         }
 
@@ -252,6 +286,8 @@ public class MaxAdsService implements IAdsService {
             public void onAdClicked(MaxAd ad) {
 //                AnalyticServices.getInstance().LogEventAdClicked(UnityPlayer.currentActivity, ad.getFormat().getLabel());
                 _adsAdsEventListener.onAdClicked(ad.getFormat().getLabel());
+
+                isClickToAds = true;
             }
 
             @Override
@@ -328,7 +364,7 @@ public class MaxAdsService implements IAdsService {
                 isFullscreenAdsShowing = false;
 
                 // Interstitial ad is hidden. Pre-load the next ad
-                mInterstitialAd.loadAd();
+                LoadInterAd(false);
                 //check is ad resume
                 if (mCurrentInterRequestCode == RESUME_INTER_ADS) {
                     Log.d(TAG, "Inter: ads resume Hidden ");
@@ -353,7 +389,7 @@ public class MaxAdsService implements IAdsService {
             public void onAdClicked(MaxAd ad) {
                 Log.d(TAG, "Inter: onAdClicked");
                 _adsAdsEventListener.onAdClicked(ad.getFormat().getLabel());
-                isInterAdClicked = true;
+                isClickToAds = true;
             }
 
             @Override
@@ -368,7 +404,8 @@ public class MaxAdsService implements IAdsService {
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        mInterstitialAd.loadAd();
+
+                        LoadInterAd(false);
                     }
                 }, delayMillis);
             }
@@ -376,12 +413,38 @@ public class MaxAdsService implements IAdsService {
             @Override
             public void onAdDisplayFailed(MaxAd ad, MaxError error) {
                 // Interstitial ad failed to display. AppLovin recommends that you load the next ad.
-                mInterstitialAd.loadAd();
+                LoadInterAd(false);
             }
         });
 
         // Load the first ad
-        mInterstitialAd.loadAd();
+        LoadInterAd(true);
+    }
+
+    private void LoadInterAd(boolean isFirstLoad) {
+        if (mInterstitialAd == null) {
+            Log.d(TAG, "Inter: onAdLoadFailed xxx");
+            return;
+        }
+        if (isFirstLoad && _apsInterId != null && !_apsInterId.equals("")) {
+            _maxAmazonAdsService.loadInterAd(_apsInterId, new DTBAdCallback() {
+                @Override
+                public void onFailure(@NonNull AdError adError) {
+                    Log.d(TAG, "APS load inter onFailure : " + adError.getMessage());
+                    mInterstitialAd.setLocalExtraParameter("amazon_ad_error", adError);
+                    mInterstitialAd.loadAd();
+                }
+
+                @Override
+                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
+                    Log.d(TAG, "APS load inter onSuccess : " + dtbAdResponse.getImpressionUrl());
+                    mInterstitialAd.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
+                    mInterstitialAd.loadAd();
+                }
+            });
+        } else {
+            mInterstitialAd.loadAd();
+        }
     }
 
     private void RunCountDownToShowInter() {
@@ -435,6 +498,10 @@ public class MaxAdsService implements IAdsService {
 
             @Override
             public void onAdLoaded(MaxAd ad) {
+                Log.d(TAG, "MREC onAdLoaded");
+                isMRECLoaded = true;
+                isMRECLoading = false;
+
                 mRectBannerState = 2;
                 if (mRectShowFlag == 1) {
                     HideMREC();
@@ -455,11 +522,14 @@ public class MaxAdsService implements IAdsService {
             public void onAdClicked(MaxAd ad) {
                 Log.d(TAG, "onMRECAdClicked: ");
 //                AnalyticManager.getInstance().ShowAds(2);
+                isClickToAds = true;
             }
 
             @Override
             public void onAdLoadFailed(String adUnitId, MaxError error) {
 //                mRectBannerLoaded = false;
+                Log.d(TAG, "MREC: onAdLoadFailed: ");
+                isMRECLoading = false;
             }
 
             @Override
@@ -483,9 +553,31 @@ public class MaxAdsService implements IAdsService {
         // Set this extra parameter to work around SDK bug that ignores calls to stopAutoRefresh()
         rectAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
         rectAdView.stopAutoRefresh();
-        // Load the ad
-        rectAdView.loadAd();
-        mRectBannerState = 1;
+
+        if (_apsEnable && _apsMRECId != null && !_apsMRECId.equals("")) {
+            _maxAmazonAdsService.loadMRECAd(_apsMRECId, new DTBAdCallback() {
+                @Override
+                public void onFailure(@NonNull AdError adError) {
+                    // 'adView' is your instance of MaxAdView
+                    rectAdView.setLocalExtraParameter("amazon_ad_error", adError);
+                    rectAdView.loadAd();
+                    isMRECLoading = true;
+                }
+
+                @Override
+                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
+                    // 'adView' is your instance of MaxAdView
+                    rectAdView.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
+                    rectAdView.loadAd();
+                    isMRECLoading = true;
+                }
+            });
+        } else {
+            // Load the ad
+            rectAdView.loadAd();
+            mRectBannerState = 1;
+            isMRECLoading = true;
+        }
     }
 
     private void LogRevenue(MaxAd ad) {
@@ -497,18 +589,7 @@ public class MaxAdsService implements IAdsService {
         _adsAdsEventListener.onAdRevenuePaid(adFormatStr, adUnitId, networkName, revenue);
     }
 
-    private void ShowNormalBanner(Activity activity, int position) {
-        if (bannerAdView != null) {
-            Log.d(TAG, "ShowBottomBannerAppLovin: 1");
-            if (bannerAdView.getVisibility() != View.VISIBLE)
-                bannerAdView.setVisibility(View.VISIBLE);
-
-            bannerAdView.startAutoRefresh();
-        } else {
-            Log.d(TAG, "ShowBottomBannerAppLovin: 2");
-            LoadNormalBanner(activity, position);
-        }
-    }
+    boolean _isBannerLoading;
 
     private void LoadNormalBanner(Activity activity, int position) {
 //        String bannerKey = activity.getResources().getString(R.string.applovin_banner_key);
@@ -535,7 +616,7 @@ public class MaxAdsService implements IAdsService {
 
             @Override
             public void onAdLoaded(MaxAd ad) {
-
+                _isBannerLoading = false;
                 Log.d(TAG, "BANNER onAdLoaded: ");
             }
 
@@ -552,11 +633,12 @@ public class MaxAdsService implements IAdsService {
             @Override
             public void onAdClicked(MaxAd ad) {
                 _adsAdsEventListener.onAdClicked(ad.getFormat().getLabel());
+                isClickToAds = true;
             }
 
             @Override
             public void onAdLoadFailed(String adUnitId, MaxError error) {
-
+                _isBannerLoading = false;
             }
 
             @Override
@@ -586,16 +668,63 @@ public class MaxAdsService implements IAdsService {
         ViewGroup rootView = activity.findViewById(android.R.id.content);
         rootView.addView(bannerAdView);
 
-        // Load the ad
-        bannerAdView.loadAd();
+        _LoadBannerInternal(activity);
+    }
+
+    private void _LoadBannerInternal(Activity activity) {
+        if (_isBannerLoading) {
+            Log.d(TAG, "_LoadBannerInternal IsLoading....");
+            return;
+        }
+
+        if (_apsEnable && _apsBannerId != null && !_apsBannerId.equals("")) {
+            _maxAmazonAdsService.loadBannerAd(activity, _apsBannerId, new DTBAdCallback() {
+                @Override
+                public void onFailure(@NonNull AdError adError) {
+                    Log.d(TAG, "APS onFailure " + adError.getMessage());
+                    // 'adView' is your instance of MaxAdView
+                    bannerAdView.setLocalExtraParameter("amazon_ad_error", adError);
+                    bannerAdView.loadAd();
+                    _isBannerLoading = true;
+                }
+
+                @Override
+                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
+                    Log.d(TAG, "APS onSuccess " + dtbAdResponse.getImpressionUrl());
+                    // 'adView' is your instance of MaxAdView
+                    bannerAdView.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
+                    bannerAdView.loadAd();
+                    _isBannerLoading = true;
+                }
+            });
+        } else {
+            // Load the ad
+            bannerAdView.loadAd();
+            _isBannerLoading = true;
+        }
+    }
+
+    private void ShowNormalBanner(Activity activity, int position) {
+        if (bannerAdView != null) {
+//            Log.d(TAG, "ShowBottomBannerAppLovin: 1");
+            if (bannerAdView.getVisibility() != View.VISIBLE)
+                bannerAdView.setVisibility(View.VISIBLE);
+
+            bannerAdView.startAutoRefresh();
+        } else {
+//            Log.d(TAG, "ShowBottomBannerAppLovin: 2");
+            LoadNormalBanner(activity, position);
+        }
     }
 
     private void HideNormalBanner() {
         Log.d(TAG, "StopBottomBanner");
         if (bannerAdView != null) {
+
             // Set this extra parameter to work around SDK bug that ignores calls to stopAutoRefresh()
             bannerAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
             bannerAdView.stopAutoRefresh();
+
             bannerAdView.setVisibility(View.GONE);
         }
     }
@@ -659,7 +788,7 @@ public class MaxAdsService implements IAdsService {
 
         if (IsInterReady()) {
             //reset flags
-            isInterAdClicked = false;
+            isClickToAds = false;
             Log.d(TAG, "ShowInter: check 3 ");
             mCurrentInterRequestCode = requestCode;
             mInterstitialAd.showAd();
@@ -701,9 +830,15 @@ public class MaxAdsService implements IAdsService {
         }
 
         mRectShowFlag = 2;
+
         if (rectAdView.getVisibility() != View.VISIBLE) {
             rectAdView.setVisibility(View.VISIBLE);
+
             rectAdView.startAutoRefresh();
+
+            if (!isMRECLoading && !isMRECLoaded) {
+                rectAdView.loadAd();
+            }
         }
     }
 
@@ -720,6 +855,25 @@ public class MaxAdsService implements IAdsService {
         }
 
         mRectShowFlag = 1;
+    }
+
+    //fix bug for unity 2022.3.12
+    private void setBannerMrecToFront() {
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+
+                if (rectAdView != null && rectAdView.getVisibility() == View.VISIBLE) {
+                    rectAdView.bringToFront();
+                }
+
+                if (bannerAdView != null && bannerAdView.getVisibility() == View.VISIBLE) {
+                    bannerAdView.bringToFront();
+                }
+            }
+        }, 500);
+
+
     }
 
     @Override
@@ -982,7 +1136,7 @@ public class MaxAdsService implements IAdsService {
 
             @Override
             public void onAdClicked(MaxAd maxAd) {
-
+                isClickToAds = true;
             }
 
             @Override
