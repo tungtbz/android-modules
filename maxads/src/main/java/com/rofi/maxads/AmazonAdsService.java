@@ -42,24 +42,6 @@ public class AmazonAdsService {
         DTBAdRequest adLoader = new DTBAdRequest();
         adLoader.setSizes(size);
         adLoader.loadAd(dtbAdCallback);
-//                new DTBAdCallback()
-//        {
-//            @Override
-//            public void onSuccess(@NonNull final DTBAdResponse dtbAdResponse)
-//            {
-//                // 'adView' is your instance of MaxAdView
-//                adView.setLocalExtraParameter( "amazon_ad_response", dtbAdResponse );
-//                adView.loadAd();
-//            }
-//
-//            @Override
-//            public void onFailure(@NonNull final AdError adError)
-//            {
-//                // 'adView' is your instance of MaxAdView
-//                adView.setLocalExtraParameter( "amazon_ad_error", adError );
-//                adView.loadAd();
-//            }
-//        } );
     }
 
     public void loadMRECAd(String amazonAdSlotId, DTBAdCallback callback) {
@@ -71,6 +53,13 @@ public class AmazonAdsService {
     public void loadInterAd(String amazonAdSlotId, DTBAdCallback callback) {
         DTBAdRequest adLoader = new DTBAdRequest();
         adLoader.setSizes(new DTBAdSize.DTBInterstitialAdSize(amazonAdSlotId));
+        adLoader.loadAd(callback);
+    }
+
+
+    public void loadRewardAd(String amazonAdSlotId, DTBAdCallback callback) {
+        DTBAdRequest adLoader = new DTBAdRequest();
+        adLoader.setSizes(new DTBAdSize.DTBVideo(320, 480, amazonAdSlotId));
         adLoader.loadAd(callback);
     }
 }

@@ -95,6 +95,7 @@ public class MaxAdsService implements IAdsService {
     private String _apsBannerId;
     private String _apsMRECId;
     private String _apsInterId;
+    private String _apsVideoRewardId;
 
     private int _bannerPosition;
     private int _mrecPosition;
@@ -141,12 +142,16 @@ public class MaxAdsService implements IAdsService {
             _apsBannerId = args[10];
             _apsMRECId = args[11];
             _apsInterId = args[12];
+            _apsVideoRewardId = args[13];
+
             if (_apsAppId != null && !_apsAppId.equals("")) {
                 _apsEnable = true;
                 Log.d(TAG, "APS _apsAppId:" + _apsAppId);
+
                 Log.d(TAG, "APS _apsBannerId:" + _apsBannerId);
-                Log.d(TAG, "APS Banner:" + _apsInterId);
+                Log.d(TAG, "APS _apsInterId:" + _apsInterId);
                 Log.d(TAG, "APS _apsMRECId:" + _apsMRECId);
+                Log.d(TAG, "APS _apsVideoRewardId:" + _apsVideoRewardId);
 
                 _maxAmazonAdsService = new AmazonAdsService();
                 _maxAmazonAdsService.Init(activity, _apsAppId);
@@ -268,7 +273,7 @@ public class MaxAdsService implements IAdsService {
             public void onAdHidden(MaxAd ad) {
                 // rewarded ad is hidden. Pre-load the next ad
                 Log.d(TAG, "video reward onAdHidden: =============================");
-                mRewardedAd.loadAd();
+                LoadVideoRewardAd(false);
                 isFullscreenAdsShowing = false;
 
                 //add some delay
@@ -301,7 +306,7 @@ public class MaxAdsService implements IAdsService {
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        mRewardedAd.loadAd();
+                        LoadVideoRewardAd(false);
                     }
                 }, delayMillis);
             }
@@ -309,11 +314,37 @@ public class MaxAdsService implements IAdsService {
             @Override
             public void onAdDisplayFailed(MaxAd ad, MaxError error) {
                 // Rewarded ad failed to display. We recommend loading the next ad
-                mRewardedAd.loadAd();
+                LoadVideoRewardAd(false);
             }
         });
 
-        mRewardedAd.loadAd();
+        LoadVideoRewardAd(true);
+    }
+
+    private void LoadVideoRewardAd(boolean isFirstLoad) {
+        if (mRewardedAd == null) {
+            Log.d(TAG, "Video reward: onAdLoadFailed xxx");
+            return;
+        }
+        if (isFirstLoad && _apsVideoRewardId != null && !_apsVideoRewardId.equals("")) {
+            _maxAmazonAdsService.loadRewardAd(_apsVideoRewardId, new DTBAdCallback() {
+                @Override
+                public void onFailure(@NonNull AdError adError) {
+                    Log.d(TAG, "APS load video reward onFailure : " + adError.getMessage());
+                    mRewardedAd.setLocalExtraParameter("amazon_ad_error", adError);
+                    mRewardedAd.loadAd();
+                }
+
+                @Override
+                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
+                    Log.d(TAG, "APS load video reward onSuccess : " + dtbAdResponse.getImpressionUrl());
+                    mRewardedAd.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
+                    mRewardedAd.loadAd();
+                }
+            });
+        } else {
+            mRewardedAd.loadAd();
+        }
     }
 
     void InitInterAds(Activity activity) {
