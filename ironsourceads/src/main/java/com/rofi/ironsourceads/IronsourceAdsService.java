@@ -26,8 +26,11 @@ import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
 import com.rofi.remoteconfig.FirebaseRemoteConfigService;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 public class IronsourceAdsService implements IAdsService {
-    private final String TAG = "AdsService";
+    private final String TAG = "IronsourceAdsService";
 
     AdsEventListener _adsEventListener;
 
@@ -89,6 +92,8 @@ public class IronsourceAdsService implements IAdsService {
             public void onAdOpened(AdInfo adInfo) {
                 Log.d(TAG, "Reward: onAdOpened");
                 _isShowingRewardAds = true;
+                isFullscreenAdsShowing = true;
+
                 _adsEventListener.onVideoRewardDisplayed();
                 IncreaseBlockAutoShowInter();
             }
@@ -98,13 +103,17 @@ public class IronsourceAdsService implements IAdsService {
             public void onAdClosed(AdInfo adInfo) {
                 Log.d(TAG, "Reward: onAdClosed");
 
-                isCoolDownShowInter = true;
-                int coolDownShowInterInSencond = 10;
-                ThreadUltils.startTask(() -> {
-                    // doTask
-                    isCoolDownShowInter = false;
-                    _isShowingRewardAds = false;
-                }, coolDownShowInterInSencond * 1000L);
+                isFullscreenAdsShowing = false;
+
+                if (!isCoolDownShowInter) {
+                    isCoolDownShowInter = true;
+                    int coolDownShowInterInSencond = 5;
+                    ThreadUltils.startTask(() -> {
+                        // doTask
+                        isCoolDownShowInter = false;
+                        _isShowingRewardAds = false;
+                    }, coolDownShowInterInSencond * 1000L);
+                }
             }
 
             // The user completed to watch the video, and should be rewarded.
@@ -152,6 +161,7 @@ public class IronsourceAdsService implements IAdsService {
             @Override
             public void onAdOpened(AdInfo adInfo) {
                 Log.d(TAG, "Inter: onAdOpened");
+                isFullscreenAdsShowing = true;
                 _adsEventListener.onInterDisplayed();
             }
 
@@ -159,6 +169,7 @@ public class IronsourceAdsService implements IAdsService {
             @Override
             public void onAdClosed(AdInfo adInfo) {
                 IronSource.loadInterstitial();
+                isFullscreenAdsShowing = false;
 
                 if (mIsShowingAppOpenAd) {
                     Log.d(TAG, "Inter: onAdHidden after show open app");
@@ -167,13 +178,8 @@ public class IronsourceAdsService implements IAdsService {
                 }
 
                 Log.d(TAG, "Inter: onAdHidden Normal");
-                int coolDownShowInterInSencond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
-                ThreadUltils.startTask(() -> {
-                    // doTask
-                    isCoolDownShowInter = false;
-                    mCurrentInterRequestCode = 0;
-                    Log.d(TAG, "Inter: onAdHidden Reset Cooldown");
-                }, coolDownShowInterInSencond * 1000L);
+                coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
+                RunCountDownToShowInter();
 
                 _adsEventListener.onInterHidden(String.valueOf(mCurrentInterRequestCode));
             }
@@ -259,6 +265,12 @@ public class IronsourceAdsService implements IAdsService {
             return;
         }
 
+        if (_isDisableInterAds) {
+            Log.e(TAG, "Failed To Show Inter: _isDisableInterAds");
+            return;
+        }
+
+
         //show normal
         if (isCoolDownShowInter) {
             Log.e(TAG, "Failed To Show Inter: isCoolDownShowInter");
@@ -277,6 +289,37 @@ public class IronsourceAdsService implements IAdsService {
         } else {
             Log.e(TAG, "ShowInter_Applovin: FAILEDDDDDDDDDDDDD");
         }
+    }
+
+    private Timer timer;
+    int coolDownShowInterInSecond;
+    boolean isFullscreenAdsShowing;
+
+    private void RunCountDownToShowInter() {
+        isCoolDownShowInter = true;
+        timer = new Timer();
+        timer.schedule(new TimerTask() {
+            public void run() {
+                // do your work
+                if (coolDownShowInterInSecond <= 0) {
+                    timer.cancel();
+
+                    isCoolDownShowInter = false;
+                    mCurrentInterRequestCode = 0;
+                    Log.d(TAG, "RunCountDownToShowInter: Reset Cooldown");
+                    return;
+                }
+
+                if (isFullscreenAdsShowing) {
+                    Log.d(TAG, "RunCountDownToShowInter  isShowingFullscreenAds --> skip");
+                    return;
+                }
+
+                Log.d(TAG, "RunCountDownToShowInter ");
+                coolDownShowInterInSecond -= 1;
+
+            }
+        }, 0, 1000);
     }
 
     @Override
@@ -349,7 +392,7 @@ public class IronsourceAdsService implements IAdsService {
         }
         if (_isDisableResumeAds) return;
 
-        showOpenAppAdIfReady();
+        showResumeApp();
     }
 
     @Override
@@ -527,7 +570,7 @@ public class IronsourceAdsService implements IAdsService {
 
     }
 
-    private void showOpenAppAdIfReady() {
+    private void showResumeApp() {
         boolean showOpenAppAds = FirebaseRemoteConfigService.getInstance().GetBoolean(Constants.RESUME_ADS_KEY);
         if (!showOpenAppAds) {
             Log.e(TAG, "showOpenAppAdIfReady: RESUME_ADS_KEY = FALSE");
@@ -546,7 +589,7 @@ public class IronsourceAdsService implements IAdsService {
         }
 
         mIsShowingAppOpenAd = true;
-//        isCoolDownShowInter = false;
+
         ShowInter(1);
     }
 
@@ -560,6 +603,7 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     private boolean _isDisableInterAds;
+
     @Override
     public void DisableInterAds() {
         _isDisableInterAds = true;
