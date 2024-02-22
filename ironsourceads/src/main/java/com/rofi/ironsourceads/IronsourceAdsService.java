@@ -59,10 +59,42 @@ public class IronsourceAdsService implements IAdsService {
             Log.e(TAG, "args is empty!");
             return;
         }
+        //set keys
         _appKey = args[0];
         _bannerPosition = Integer.parseInt(args[6]);
         _mrecPosition = Integer.parseInt(args[7]);
 
+        setISListener();
+
+        if (BuildConfig.DEBUG) {
+            IronSource.setMetaData("is_test_suite", "enable");
+        }
+        IronSource.setConsent(true);
+        IronSource.setMetaData("do_not_sell", "false");
+        IronSource.setMetaData("is_child_directed", "false");
+
+        String appKey = activity.getResources().getString(R.string.ironsource_app_key);
+        IronSource.init(activity, appKey, new InitializationListener() {
+                    @Override
+                    public void onInitializationComplete() {
+                        if (BuildConfig.DEBUG)
+                            IronSource.launchTestSuite(activity);
+                        if (BuildConfig.DEBUG)
+                            IntegrationHelper.validateIntegration(activity);
+
+                        Log.d(TAG, "onInitializationComplete: ");
+                        IronSource.loadInterstitial();
+                    }
+                },
+                IronSource.AD_UNIT.INTERSTITIAL,
+                IronSource.AD_UNIT.REWARDED_VIDEO,
+                IronSource.AD_UNIT.BANNER);
+
+        IronSource.shouldTrackNetworkState(activity.getApplicationContext(), true);
+    }
+
+    private void setISListener(){
+        //set listeners
         IronSource.addImpressionDataListener(new ImpressionDataListener() {
             @Override
             public void onImpressionSuccess(ImpressionData impressionData) {
@@ -127,9 +159,7 @@ public class IronsourceAdsService implements IAdsService {
 
             // The rewarded video ad was failed to show
             @Override
-            public void onAdShowFailed(IronSourceError error, AdInfo adInfo) {
-
-            }
+            public void onAdShowFailed(IronSourceError error, AdInfo adInfo) {}
 
             // Invoked when the video ad was clicked.
             // This callback is not supported by all networks, and we recommend using it
@@ -204,32 +234,6 @@ public class IronsourceAdsService implements IAdsService {
             public void onAdShowSucceeded(AdInfo adInfo) {
             }
         });
-
-        if (BuildConfig.DEBUG) {
-            IronSource.setMetaData("is_test_suite", "enable");
-        }
-        IronSource.setConsent(true);
-        IronSource.setMetaData("do_not_sell", "false");
-        IronSource.setMetaData("is_child_directed", "false");
-
-        String appKey = activity.getResources().getString(R.string.ironsource_app_key);
-        IronSource.init(activity, appKey, new InitializationListener() {
-                    @Override
-                    public void onInitializationComplete() {
-                        if (BuildConfig.DEBUG)
-                            IronSource.launchTestSuite(activity);
-                        if (BuildConfig.DEBUG)
-                            IntegrationHelper.validateIntegration(activity);
-
-                        Log.d(TAG, "onInitializationComplete: ");
-                        IronSource.loadInterstitial();
-                    }
-                },
-                IronSource.AD_UNIT.INTERSTITIAL,
-                IronSource.AD_UNIT.REWARDED_VIDEO,
-                IronSource.AD_UNIT.BANNER);
-
-        IronSource.shouldTrackNetworkState(activity.getApplicationContext(), true);
     }
 
     @Override

@@ -77,11 +77,11 @@ public final class GoogleMobileAdsConsentManager {
             Activity activity, OnConsentGatheringCompleteListener onConsentGatheringCompleteListener) {
         // For testing purposes, you can force a DebugGeography of EEA or NOT_EEA.
         ConsentDebugSettings debugSettings = new ConsentDebugSettings.Builder(activity)
-                // .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
+                 .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
                 // Check your logcat output for the hashed device ID e.g.
                 // "Use new ConsentDebugSettings.Builder().addTestDeviceHashedId("ABCDEF012345")" to use
                 // the debug functionality.
-//                .addTestDeviceHashedId("TEST-DEVICE-HASHED-ID")
+                .addTestDeviceHashedId("0B6312C522BE88E9F10AAC1F7CF2FC41")
                 .build();
 
         ConsentRequestParameters params = new ConsentRequestParameters.Builder()
