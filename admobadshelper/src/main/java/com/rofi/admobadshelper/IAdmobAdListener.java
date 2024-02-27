@@ -1,7 +1,9 @@
 package com.rofi.admobadshelper;
 
 public interface IAdmobAdListener {
-    void onShowAdComplete();
-    void onAdImpression(String adUnitId, String adNetwork, double value);
-    void onAdDismissed();
+    void onAdImpression(String adFormat, String adUnitId, String adNetwork, double value);
+
+    void onAdDismissedFullScreenContent(int type);
+
+    void onAdClicked();
 }

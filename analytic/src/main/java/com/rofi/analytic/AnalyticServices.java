@@ -75,6 +75,12 @@ public class AnalyticServices {
         }
     }
 
+    public void AdmobAdsRevenueTracking(Activity activity, String adFormat, String adSourceName, String adUnitId, double value) {
+        for (IAnalytic analytic : analyticList) {
+            analytic.AdmobAdsRevenueTracking(activity, adFormat, adSourceName, adUnitId, value);
+        }
+    }
+
     public void OnShowInter() {
         _showInterAdsCount += 1;
         Log.d(TAG, "OnShowInter: " + _showInterAdsCount);

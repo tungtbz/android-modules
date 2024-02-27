@@ -2,7 +2,6 @@ package com.rofi.admobadshelper;
 
 import android.app.Activity;
 import android.content.Context;
-import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -39,6 +38,7 @@ public class AdmobHelper {
     private long loadTime = 0;
     private int consentCode = -1;
 
+    private IAdmobAdListener adsEventCallback;
 
     AdView mrecAdView;
 
@@ -53,7 +53,7 @@ public class AdmobHelper {
     String _mrecAdsId;
     boolean mrecAdLoading;
     boolean mrecAdLoaded;
-    private IAdmobAdListener adListener;
+    //    private IAdmobAdListener adListener;
     private ConsentInformation consentInformation;
     // Use an atomic boolean to initialize the Google Mobile Ads SDK and load ads once.
     private final AtomicBoolean isMobileAdsInitializeCalled = new AtomicBoolean(false);
@@ -62,7 +62,11 @@ public class AdmobHelper {
     public void Init(Activity activity, IAdmobAdListener adListener, String[] args) {
         _appOpenAdsId = args[0];
 
-        this.adListener = adListener;
+//        this.adListener = adListener;
+    }
+
+    public void SetAdsCallback(IAdmobAdListener callback) {
+        adsEventCallback = callback;
     }
 
     public void initMrec(Activity activity, String adUnitId, String position) {
@@ -153,7 +157,7 @@ public class AdmobHelper {
 
             }
 
-            onAdPaid(adValue, _mrecAdsId, adSourceName);
+            onAdPaid("MREC", adValue, _mrecAdsId, adSourceName);
 
         });
 
@@ -163,6 +167,12 @@ public class AdmobHelper {
                 super.onAdLoaded();
                 mrecAdLoading = false;
                 mrecAdLoaded = true;
+            }
+
+            @Override
+            public void onAdClicked() {
+                super.onAdClicked();
+                if (adsEventCallback != null) adsEventCallback.onAdClicked();
             }
         });
 
@@ -181,7 +191,7 @@ public class AdmobHelper {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, (float) var1, var0.getResources().getDisplayMetrics());
     }
 
-    private void onAdPaid(AdValue adValue, String adUnitId, String adSourceName) {
+    private void onAdPaid(String adFormat, AdValue adValue, String adUnitId, String adSourceName) {
         // Extract the impression-level ad revenue data.
         double value = (double) adValue.getValueMicros() / 1000000;
         String currencyCode = adValue.getCurrencyCode();
@@ -189,7 +199,7 @@ public class AdmobHelper {
 
         Log.d(TAG, "Ads on Paid Event " + "\nvalueMicros" + value + ", currencyCode: " + currencyCode + " ,precision: " + precision + " ,adUnitId: " + adUnitId + " ,adSourceName" + adSourceName);
 
-        adListener.onAdImpression(adUnitId, adSourceName, value);
+        adsEventCallback.onAdImpression(adFormat, adUnitId, adSourceName, value);
     }
 
 
@@ -226,7 +236,7 @@ public class AdmobHelper {
 
                         }
 
-                        onAdPaid(adValue, adUnitId, adSourceName);
+                        onAdPaid("App open", adValue, adUnitId, adSourceName);
 
                     }
                 });
@@ -273,6 +283,7 @@ public class AdmobHelper {
             @Override
             public void onAdClicked() {
                 super.onAdClicked();
+                if (adsEventCallback != null) adsEventCallback.onAdClicked();
             }
 
             @Override
@@ -282,7 +293,7 @@ public class AdmobHelper {
                 Log.d(TAG, "Ad dismissed fullscreen content.");
                 _appOpenAd = null;
                 _isShowingAd = false;
-                adListener.onAdDismissed();
+                adsEventCallback.onAdDismissedFullScreenContent(0);
             }
 
             @Override

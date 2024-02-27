@@ -67,4 +67,16 @@ public class FirebaseAnalytic implements IAnalytic {
         params.putString(FirebaseAnalytics.Param.CURRENCY, "USD"); // All Applovin revenue is sent in USD
         mFirebaseAnalytics.logEvent(FirebaseAnalytics.Event.AD_IMPRESSION, params);
     }
+
+    @Override
+    public void AdmobAdsRevenueTracking(Activity activity, String adFormat, String adSourceName, String adUnitId, double value) {
+        Bundle params = new Bundle();
+        params.putString(FirebaseAnalytics.Param.AD_PLATFORM, "Admob");
+        params.putString(FirebaseAnalytics.Param.AD_SOURCE, adSourceName);
+        params.putString(FirebaseAnalytics.Param.AD_FORMAT, adFormat);
+        params.putString(FirebaseAnalytics.Param.AD_UNIT_NAME, adUnitId);
+        params.putDouble(FirebaseAnalytics.Param.VALUE, value);
+        params.putString(FirebaseAnalytics.Param.CURRENCY, "USD"); // All Applovin revenue is sent in USD
+        mFirebaseAnalytics.logEvent(FirebaseAnalytics.Event.AD_IMPRESSION, params);
+    }
 }

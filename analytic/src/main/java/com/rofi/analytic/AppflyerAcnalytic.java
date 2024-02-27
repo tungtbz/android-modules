@@ -91,4 +91,16 @@ public class AppflyerAcnalytic implements IAnalytic {
         AppsFlyerAdRevenue.logAdRevenue(adSourceName, MediationNetwork.googleadmob, Currency.getInstance(Locale.US), value, customParams);
 
     }
+
+    @Override
+    public void AdmobAdsRevenueTracking(Activity activity, String adFormat, String adSourceName, String adUnitId, double value) {
+        Map<String, String> customParams = new HashMap<>();
+        customParams.put("ad_platform", "Admob");
+        customParams.put("ad_source", adSourceName);
+        customParams.put("ad_unit_name", "");
+        customParams.put(Scheme.AD_UNIT, adUnitId);
+        customParams.put(Scheme.AD_TYPE, adFormat);
+
+        AppsFlyerAdRevenue.logAdRevenue(adSourceName, MediationNetwork.googleadmob, Currency.getInstance(Locale.US), value, customParams);
+    }
 }

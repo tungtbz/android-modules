@@ -39,7 +39,7 @@ public class IronsourceAdsService implements IAdsService {
 
     private int mCurrentInterRequestCode;
     private boolean isCoolDownShowInter;
-    private boolean isInterAdClicked;
+    private boolean isAdClicked;
     private boolean mIsShowingAppOpenAd;
 
     private FrameLayout mBannerContainer;
@@ -93,7 +93,7 @@ public class IronsourceAdsService implements IAdsService {
         IronSource.shouldTrackNetworkState(activity.getApplicationContext(), true);
     }
 
-    private void setISListener(){
+    private void setISListener() {
         //set listeners
         IronSource.addImpressionDataListener(new ImpressionDataListener() {
             @Override
@@ -159,7 +159,8 @@ public class IronsourceAdsService implements IAdsService {
 
             // The rewarded video ad was failed to show
             @Override
-            public void onAdShowFailed(IronSourceError error, AdInfo adInfo) {}
+            public void onAdShowFailed(IronSourceError error, AdInfo adInfo) {
+            }
 
             // Invoked when the video ad was clicked.
             // This callback is not supported by all networks, and we recommend using it
@@ -169,6 +170,7 @@ public class IronsourceAdsService implements IAdsService {
                 Log.d(TAG, "Reward: onAdClicked");
 //                Log.d(TAG, "onAdClicked: " + adInfo.);
                 _adsEventListener.onAdClicked(adInfo.getAdUnit());
+                isAdClicked = true;
             }
         });
 
@@ -224,7 +226,7 @@ public class IronsourceAdsService implements IAdsService {
             public void onAdClicked(AdInfo adInfo) {
                 Log.d(TAG, "Inter: onAdClicked");
                 _adsEventListener.onAdClicked(adInfo.getAdUnit());
-                isInterAdClicked = true;
+                isAdClicked = true;
             }
 
             // Invoked before the interstitial ad was opened, and before the InterstitialOnAdOpenedEvent is reported.
@@ -258,6 +260,11 @@ public class IronsourceAdsService implements IAdsService {
 
     @Override
     public void ShowInter(int requestCode) {
+        if (_isDisableInterAds) {
+            Log.e(TAG, "Failed To Show Inter: _isDisableInterAds");
+            return;
+        }
+
         //force show inter ads
         if (requestCode == 1) {
             if (IsInterReady()) {
@@ -269,12 +276,6 @@ public class IronsourceAdsService implements IAdsService {
             return;
         }
 
-        if (_isDisableInterAds) {
-            Log.e(TAG, "Failed To Show Inter: _isDisableInterAds");
-            return;
-        }
-
-
         //show normal
         if (isCoolDownShowInter) {
             Log.e(TAG, "Failed To Show Inter: isCoolDownShowInter");
@@ -283,7 +284,7 @@ public class IronsourceAdsService implements IAdsService {
 
         if (IsInterReady()) {
             //reset flags
-            isInterAdClicked = false;
+            isAdClicked = false;
             isCoolDownShowInter = true;
 
             mCurrentInterRequestCode = requestCode;
@@ -390,6 +391,7 @@ public class IronsourceAdsService implements IAdsService {
         IronSource.onResume(activity);
 
         Log.d(TAG, "onResume blockAutoShowInterCount: " + blockAutoShowInterCount);
+
         if (blockAutoShowInterCount > 0) {
             DecreaseBlockAutoShowInter();
             return;
@@ -484,6 +486,7 @@ public class IronsourceAdsService implements IAdsService {
                 public void onAdClicked(AdInfo adInfo) {
                     Log.d(TAG, "onBannerAdClicked");
                     _adsEventListener.onAdClicked("BANNER");
+                    isAdClicked = true;
                 }
 
                 @Override
@@ -530,7 +533,9 @@ public class IronsourceAdsService implements IAdsService {
 
             @Override
             public void onAdClicked(AdInfo adInfo) {
+
                 _adsEventListener.onAdClicked("MREC");
+                isAdClicked = true;
             }
 
             @Override
@@ -581,8 +586,8 @@ public class IronsourceAdsService implements IAdsService {
             return;
         }
         //resume from ads
-        if (isInterAdClicked) {
-            isInterAdClicked = false;
+        if (isAdClicked) {
+            isAdClicked = false;
             Log.e(TAG, "showOpenAppAdIfReady: isInterAdClicked");
             return;
         }

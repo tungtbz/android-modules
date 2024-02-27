@@ -12,4 +12,6 @@ public interface IAnalytic {
     void ClickToAd(Activity activity, String adUnitId);
 
     void AdmobAppOpenAdsRevenueTracking(Activity activity, String adSourceName, String adUnitId, double value);
+
+    void AdmobAdsRevenueTracking(Activity activity, String adFormat, String adSourceName, String adUnitId, double value);
 }
