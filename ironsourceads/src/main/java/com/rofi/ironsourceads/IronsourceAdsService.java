@@ -392,11 +392,6 @@ public class IronsourceAdsService implements IAdsService {
 
         Log.d(TAG, "onResume blockAutoShowInterCount: " + blockAutoShowInterCount);
 
-        if (blockAutoShowInterCount > 0) {
-            DecreaseBlockAutoShowInter();
-            return;
-        }
-        if (_isDisableResumeAds) return;
 
         showResumeApp();
     }
@@ -438,11 +433,13 @@ public class IronsourceAdsService implements IAdsService {
 
     @Override
     public void DisableResumeAds() {
+        Log.d(TAG, "DisableResumeAds");
         _isDisableResumeAds = true;
     }
 
     @Override
     public void EnableResumeAds() {
+        Log.d(TAG, "EnableResumeAds");
         _isDisableResumeAds = false;
     }
 
@@ -580,6 +577,15 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     private void showResumeApp() {
+        if (blockAutoShowInterCount > 0) {
+            DecreaseBlockAutoShowInter();
+            return;
+        }
+        if (_isDisableResumeAds) {
+            Log.e(TAG, "showOpenAppAdIfReady: _isDisableResumeAds");
+            return;
+        }
+
         boolean showOpenAppAds = FirebaseRemoteConfigService.getInstance().GetBoolean(Constants.RESUME_ADS_KEY);
         if (!showOpenAppAds) {
             Log.e(TAG, "showOpenAppAdIfReady: RESUME_ADS_KEY = FALSE");
