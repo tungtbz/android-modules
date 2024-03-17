@@ -2,8 +2,11 @@ package com.rofi.admobadshelper;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,6 +14,7 @@ import android.widget.FrameLayout;
 
 import androidx.annotation.Dimension;
 
+import com.google.ads.mediation.admob.AdMobAdapter;
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
@@ -42,6 +46,8 @@ public class AdmobHelper {
 
     AdView mrecAdView;
 
+    AdView cBannerView;
+
     public static AdmobHelper getInstance() {
         if (null == mInstance) {
             mInstance = new AdmobHelper();
@@ -50,9 +56,13 @@ public class AdmobHelper {
     }
 
     String _appOpenAdsId;
+    String _cBannerId;
+    int bannerPosition;
     String _mrecAdsId;
     boolean mrecAdLoading;
+    boolean bannerAdLoading;
     boolean mrecAdLoaded;
+    boolean bannerAdLoaded;
     //    private IAdmobAdListener adListener;
     private ConsentInformation consentInformation;
     // Use an atomic boolean to initialize the Google Mobile Ads SDK and load ads once.
@@ -63,6 +73,109 @@ public class AdmobHelper {
         _appOpenAdsId = args[0];
 
 //        this.adListener = adListener;
+    }
+
+    public void initCollapsibleBanner(Activity activity, String id, int position) {
+        _cBannerId = id;
+        bannerPosition = position;
+        cBannerView = new AdView(activity);
+        cBannerView.setAdSize(AdSize.BANNER);
+        cBannerView.setAdUnitId(_cBannerId);
+        cBannerView.setVisibility(View.GONE);
+
+        cBannerView.setOnPaidEventListener(adValue -> {
+            // Get the ad unit ID.
+            AdapterResponseInfo loadedAdapterResponseInfo = cBannerView.getResponseInfo().getLoadedAdapterResponseInfo();
+            String adSourceName = "admob";
+            if (loadedAdapterResponseInfo != null) {
+                adSourceName = loadedAdapterResponseInfo.getAdSourceName();
+                Log.d(TAG, "BANNER loadedAdapterResponseInfo" + "\nadSourceName" + adSourceName);
+
+            }
+
+            onAdPaid("COLLAPSIBLE_BANNER", adValue, _cBannerId, adSourceName);
+
+        });
+
+        cBannerView.setAdListener(new AdListener() {
+            @Override
+            public void onAdLoaded() {
+                super.onAdLoaded();
+                bannerAdLoading = false;
+                bannerAdLoaded = true;
+                Log.d(TAG, "BANNER onAdLoaded");
+            }
+
+            @Override
+            public void onAdClicked() {
+                super.onAdClicked();
+                if (adsEventCallback != null) adsEventCallback.onAdClicked();
+            }
+        });
+
+        int gravity = bannerPosition == Constants.POSITION_CENTER_TOP ?
+                Gravity.CENTER_HORIZONTAL | Gravity.TOP :
+                Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+        FrameLayout.LayoutParams layoutParams =
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
+
+        layoutParams.setMargins(0, 0, 0, 0);
+        cBannerView.setLayoutParams(layoutParams);
+
+        ViewGroup rootView = activity.findViewById(android.R.id.content);
+        rootView.addView(cBannerView);
+    }
+
+    private void loadBanner() {
+        if (_cBannerId == null) return;
+        if (cBannerView == null) return;
+        if (bannerAdLoading) return;
+        if (bannerAdLoaded) return;
+
+        // Create an extra parameter that aligns the bottom of the expanded ad to
+        // the bottom of the bannerView.
+        Bundle extras = new Bundle();
+        extras.putString("collapsible", bannerPosition == Constants.POSITION_CENTER_TOP ? "top" : "bottom");
+
+        AdRequest adRequest = new AdRequest.Builder()
+                .addNetworkExtrasBundle(AdMobAdapter.class, extras)
+                .build();
+
+        cBannerView.loadAd(adRequest);
+        bannerAdLoading = true;
+    }
+
+    public void showBanner() {
+        if (bannerAdLoaded && cBannerView.getVisibility() == View.GONE) {
+            Log.d(TAG, "showBanner");
+            cBannerView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    public void HideBanner() {
+        if (bannerAdLoaded && cBannerView.getVisibility() == View.VISIBLE) {
+            Log.d(TAG, "HideBanner");
+            cBannerView.setVisibility(View.GONE);
+        }
+    }
+
+    private AdSize getAdSize(Activity activity, View view) {
+        // Determine the screen width (less decorations) to use for the ad width.
+        Display display = activity.getWindowManager().getDefaultDisplay();
+        DisplayMetrics outMetrics = new DisplayMetrics();
+        display.getMetrics(outMetrics);
+
+        float density = outMetrics.density;
+
+        float adWidthPixels = view.getWidth();
+
+        // If the ad hasn't been laid out, default to the full screen width.
+        if (adWidthPixels == 0) {
+            adWidthPixels = outMetrics.widthPixels;
+        }
+
+        int adWidth = (int) (adWidthPixels / density);
+        return AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity.getApplicationContext(), adWidth);
     }
 
     public void SetAdsCallback(IAdmobAdListener callback) {
@@ -166,7 +279,7 @@ public class AdmobHelper {
             public void onAdLoaded() {
                 super.onAdLoaded();
                 mrecAdLoading = false;
-                mrecAdLoaded = true;
+                bannerAdLoaded = true;
             }
 
             @Override
@@ -329,6 +442,8 @@ public class AdmobHelper {
         // Initialize the Google Mobile Ads SDK.
         MobileAds.initialize(activity.getApplicationContext(), initializationStatus -> {
             loadMrec();
+
+            loadBanner();
         });
     }
 }
