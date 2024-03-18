@@ -13,9 +13,12 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import androidx.annotation.Dimension;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.ads.mediation.admob.AdMobAdapter;
 import com.google.android.gms.ads.AdError;
+import com.google.android.gms.ads.AdInspectorError;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
@@ -25,12 +28,16 @@ import com.google.android.gms.ads.AdapterResponseInfo;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.OnAdInspectorClosedListener;
 import com.google.android.gms.ads.OnPaidEventListener;
 import com.google.android.gms.ads.appopen.AppOpenAd;
+import com.google.android.gms.ads.initialization.AdapterStatus;
 import com.google.android.ump.ConsentInformation;
 import com.rofi.base.Constants;
 
 import java.util.Date;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AdmobHelper {
@@ -266,7 +273,7 @@ public class AdmobHelper {
             String adSourceName = "admob";
             if (loadedAdapterResponseInfo != null) {
                 adSourceName = loadedAdapterResponseInfo.getAdSourceName();
-                Log.d(TAG, "App Open Ads loadedAdapterResponseInfo" + "\nadSourceName" + adSourceName);
+                Log.d(TAG, "MREC loadedAdapterResponseInfo" + "\nadSourceName" + adSourceName);
 
             }
 
@@ -279,13 +286,21 @@ public class AdmobHelper {
             public void onAdLoaded() {
                 super.onAdLoaded();
                 mrecAdLoading = false;
-                bannerAdLoaded = true;
+                mrecAdLoaded = true;
+
+                Log.d(TAG, "Banner adapter class name: " + Objects.requireNonNull(mrecAdView.getResponseInfo()).getMediationAdapterClassName());
             }
 
             @Override
             public void onAdClicked() {
                 super.onAdClicked();
                 if (adsEventCallback != null) adsEventCallback.onAdClicked();
+            }
+
+            @Override
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                super.onAdFailedToLoad(loadAdError);
+                Log.d(TAG, "MREC onAdFailedToLoad" + "\nloadAdError: " + loadAdError.getMessage());
             }
         });
 
@@ -355,6 +370,8 @@ public class AdmobHelper {
                 });
 
                 loadTime = (new Date()).getTime();
+
+                Log.d(TAG, "Banner adapter class name: " + Objects.requireNonNull(_appOpenAd.getResponseInfo()).getMediationAdapterClassName());
             }
 
             @Override
@@ -441,6 +458,25 @@ public class AdmobHelper {
 
         // Initialize the Google Mobile Ads SDK.
         MobileAds.initialize(activity.getApplicationContext(), initializationStatus -> {
+            if (BuildConfig.DEBUG) {
+                Map<String, AdapterStatus> statusMap = initializationStatus.getAdapterStatusMap();
+                for (String adapterClass : statusMap.keySet()) {
+                    AdapterStatus status = statusMap.get(adapterClass);
+                    assert status != null;
+                    Log.d(TAG, String.format(
+                            "Adapter name: %s, Description: %s, Latency: %d",
+                            adapterClass, status.getDescription(), status.getLatency()));
+                }
+
+                MobileAds.openAdInspector(activity.getApplicationContext(), new OnAdInspectorClosedListener() {
+                    @Override
+                    public void onAdInspectorClosed(@Nullable AdInspectorError adInspectorError) {
+                        
+                    }
+                });
+
+
+            }
             loadMrec();
 
             loadBanner();
