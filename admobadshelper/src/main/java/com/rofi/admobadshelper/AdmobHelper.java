@@ -30,6 +30,7 @@ import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.OnAdInspectorClosedListener;
 import com.google.android.gms.ads.OnPaidEventListener;
+import com.google.android.gms.ads.ResponseInfo;
 import com.google.android.gms.ads.appopen.AppOpenAd;
 import com.google.android.gms.ads.initialization.AdapterStatus;
 import com.google.android.ump.ConsentInformation;
@@ -38,6 +39,7 @@ import com.rofi.base.Constants;
 import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AdmobHelper {
@@ -82,26 +84,29 @@ public class AdmobHelper {
 //        this.adListener = adListener;
     }
 
-    public void initCollapsibleBanner(Activity activity, String id, int position) {
+    public void initBanner(Activity activity, String id, int position) {
         _cBannerId = id;
         bannerPosition = position;
+
         cBannerView = new AdView(activity);
         cBannerView.setAdSize(AdSize.BANNER);
         cBannerView.setAdUnitId(_cBannerId);
         cBannerView.setVisibility(View.GONE);
 
         cBannerView.setOnPaidEventListener(adValue -> {
-            // Get the ad unit ID.
-            AdapterResponseInfo loadedAdapterResponseInfo = cBannerView.getResponseInfo().getLoadedAdapterResponseInfo();
+            ResponseInfo responseInfo = cBannerView.getResponseInfo();
             String adSourceName = "admob";
-            if (loadedAdapterResponseInfo != null) {
-                adSourceName = loadedAdapterResponseInfo.getAdSourceName();
-                Log.d(TAG, "BANNER loadedAdapterResponseInfo" + "\nadSourceName" + adSourceName);
+            if (responseInfo != null) {
+                AdapterResponseInfo loadedAdapterResponseInfo = responseInfo.getLoadedAdapterResponseInfo();
 
+                if (loadedAdapterResponseInfo != null) {
+                    adSourceName = loadedAdapterResponseInfo.getAdSourceName();
+                    Log.d(TAG, "BANNER loadedAdapterResponseInfo" + "\nadSourceName" + adSourceName);
+
+                }
             }
-
+            // Get the ad unit ID.
             onAdPaid("COLLAPSIBLE_BANNER", adValue, _cBannerId, adSourceName);
-
         });
 
         cBannerView.setAdListener(new AdListener() {
@@ -116,15 +121,15 @@ public class AdmobHelper {
             @Override
             public void onAdClicked() {
                 super.onAdClicked();
-                if (adsEventCallback != null) adsEventCallback.onAdClicked();
+                if (adsEventCallback != null) {
+                    adsEventCallback.onAdClicked();
+                }
             }
         });
 
-        int gravity = bannerPosition == Constants.POSITION_CENTER_TOP ?
-                Gravity.CENTER_HORIZONTAL | Gravity.TOP :
-                Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-        FrameLayout.LayoutParams layoutParams =
-                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
+        int gravity = bannerPosition == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
 
         layoutParams.setMargins(0, 0, 0, 0);
         cBannerView.setLayoutParams(layoutParams);
@@ -143,10 +148,9 @@ public class AdmobHelper {
         // the bottom of the bannerView.
         Bundle extras = new Bundle();
         extras.putString("collapsible", bannerPosition == Constants.POSITION_CENTER_TOP ? "top" : "bottom");
+        extras.putString("collapsible_request_id", UUID.randomUUID().toString());
 
-        AdRequest adRequest = new AdRequest.Builder()
-                .addNetworkExtrasBundle(AdMobAdapter.class, extras)
-                .build();
+        AdRequest adRequest = new AdRequest.Builder().addNetworkExtrasBundle(AdMobAdapter.class, extras).build();
 
         cBannerView.loadAd(adRequest);
         bannerAdLoading = true;
@@ -198,6 +202,7 @@ public class AdmobHelper {
         if (mrecAdView != null) {
             if (mrecAdLoading) return;
             if (mrecAdLoaded) return;
+
             mrecAdLoading = true;
 
             AdRequest adRequest = new AdRequest.Builder().build();
@@ -305,8 +310,7 @@ public class AdmobHelper {
         });
 
         int gravity = position == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-        FrameLayout.LayoutParams layoutParams =
-                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
         layoutParams.setMargins(0, 0, 0, 0);
         mrecAdView.setLayoutParams(layoutParams);
 
@@ -463,15 +467,13 @@ public class AdmobHelper {
                 for (String adapterClass : statusMap.keySet()) {
                     AdapterStatus status = statusMap.get(adapterClass);
                     assert status != null;
-                    Log.d(TAG, String.format(
-                            "Adapter name: %s, Description: %s, Latency: %d",
-                            adapterClass, status.getDescription(), status.getLatency()));
+                    Log.d(TAG, String.format("Adapter name: %s, Description: %s, Latency: %d", adapterClass, status.getDescription(), status.getLatency()));
                 }
 
                 MobileAds.openAdInspector(activity.getApplicationContext(), new OnAdInspectorClosedListener() {
                     @Override
                     public void onAdInspectorClosed(@Nullable AdInspectorError adInspectorError) {
-                        
+
                     }
                 });
 
