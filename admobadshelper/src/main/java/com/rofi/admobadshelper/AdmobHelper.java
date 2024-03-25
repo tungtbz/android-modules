@@ -333,8 +333,7 @@ public class AdmobHelper {
 
         adsEventCallback.onAdImpression(adFormat, adUnitId, adSourceName, value);
     }
-
-
+    
     /**
      * Request an ad.
      */
