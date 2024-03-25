@@ -34,5 +34,4 @@ dependencies {
     implementation project(':base')
     implementation project(':remoteconfig')
     implementation project(':ads')
-//    implementation 'androidx.lifecycle:lifecycle-process:2.6.1'
 }

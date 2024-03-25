@@ -58,7 +58,14 @@ import java.util.concurrent.ThreadFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-public class MaxUnityAdManager implements MaxAdListener, MaxAdViewAdListener, MaxRewardedAdListener, MaxAdRevenueListener, MaxAdReviewListener, AppLovinUserService.OnConsentDialogDismissListener, AppLovinCmpService.OnCompletedListener {
+public class MaxUnityAdManager implements
+        MaxAdListener,
+        MaxAdViewAdListener,
+        MaxRewardedAdListener,
+        MaxAdRevenueListener,
+        MaxAdReviewListener,
+        AppLovinUserService.OnConsentDialogDismissListener,
+        AppLovinCmpService.OnCompletedListener {
     private static final String SDK_TAG = "AppLovinSdk";
 
     private static final String TAG = "MaxUnityAdManager";
@@ -904,7 +911,7 @@ public class MaxUnityAdManager implements MaxAdListener, MaxAdViewAdListener, Ma
                     return;
                 }
                 if (!MaxUnityAdManager.this.mDisabledAutoRefreshAdViewAdUnitIds.contains(adUnitId)) {
-                    if (adView.getVisibility() != 0) {
+                    if (adView.getVisibility() != View.VISIBLE) {
                         MaxUnityAdManager.e("Auto-refresh will resume when the " + adFormat.getLabel() + " ad is shown. You should only call LoadBanner() or LoadMRec() if you explicitly pause auto-refresh and want to manually load an ad.");
                         return;
                     }
@@ -1001,8 +1008,8 @@ public class MaxUnityAdManager implements MaxAdListener, MaxAdViewAdListener, Ma
                     MaxUnityAdManager.this.mAdUnitIdsToShowAfterCreate.add(adUnitId);
                     return;
                 }
-                MaxUnityAdManager.this.mSafeAreaBackground.setVisibility(0);
-                adView.setVisibility(0);
+                MaxUnityAdManager.this.mSafeAreaBackground.setVisibility(View.VISIBLE);
+                adView.setVisibility(View.VISIBLE);
                 if (!MaxUnityAdManager.this.mDisabledAutoRefreshAdViewAdUnitIds.contains(adUnitId))
                     adView.startAutoRefresh();
             }
@@ -1019,8 +1026,8 @@ public class MaxUnityAdManager implements MaxAdListener, MaxAdViewAdListener, Ma
                     MaxUnityAdManager.e(adFormat.getLabel() + " does not exist");
                     return;
                 }
-                MaxUnityAdManager.this.mSafeAreaBackground.setVisibility(8);
-                adView.setVisibility(8);
+                MaxUnityAdManager.this.mSafeAreaBackground.setVisibility(View.GONE);
+                adView.setVisibility(View.GONE);
                 adView.stopAutoRefresh();
             }
         });
@@ -1368,12 +1375,12 @@ public class MaxUnityAdManager implements MaxAdListener, MaxAdViewAdListener, Ma
                             marginLeft -= insets.left;
                             marginRight -= insets.right;
                         } else {
-                            MaxUnityAdManager.this.mSafeAreaBackground.setVisibility(8);
+                            MaxUnityAdManager.this.mSafeAreaBackground.setVisibility(View.GONE);
                         }
                         safeAreaLayoutParams.gravity = safeAreaBackgroundGravity;
                         MaxUnityAdManager.this.mSafeAreaBackground.requestLayout();
                     } else {
-                        MaxUnityAdManager.this.mSafeAreaBackground.setVisibility(8);
+                        MaxUnityAdManager.this.mSafeAreaBackground.setVisibility(View.GONE);
                     }
                 params.setMargins(marginLeft, marginTop, marginRight, marginBottom);
                 relativeLayout.setGravity(gravity);

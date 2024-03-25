@@ -40,6 +40,7 @@ import com.rofi.ads.IAdsService;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
 import com.rofi.remoteconfig.FirebaseRemoteConfigService;
+import com.tbase.maxads.MaxUnityPlugin;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -158,8 +159,11 @@ public class MaxAdsService implements IAdsService {
             }
         }
 
+        MaxUnityPlugin.initializeSdk();
+
         mRectBannerState = 0;
         mRectShowFlag = 1;
+
         Context context = activity.getApplicationContext();
 
         AppLovinPrivacySettings.setHasUserConsent(true, context);
