@@ -17,6 +17,7 @@ import androidx.annotation.NonNull;
 import com.amazon.device.ads.AdError;
 import com.amazon.device.ads.DTBAdCallback;
 import com.amazon.device.ads.DTBAdResponse;
+import com.applovin.impl.sdk.utils.JsonUtils;
 import com.applovin.mediation.MaxAd;
 import com.applovin.mediation.MaxAdFormat;
 import com.applovin.mediation.MaxAdRevenueListener;
@@ -40,8 +41,12 @@ import com.rofi.ads.IAdsService;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
 import com.rofi.remoteconfig.FirebaseRemoteConfigService;
+import com.tbase.maxads.MaxUnityAdManager;
 import com.tbase.maxads.MaxUnityPlugin;
 
+import org.json.JSONObject;
+
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
@@ -78,11 +83,9 @@ public class MaxAdsService implements IAdsService {
     //native ads
     private FrameLayout mNativeRectAdsContainer;
     private FrameLayout mNativeBannerAdsContainer;
-
     private MaxNativeAdLoader nativeRectAdLoader;
     private MaxNativeAdLoader nativeBannerAdLoader;
     private MaxAd nativeRectAd, nativeBannerAd;
-
     private String _bannerAdId;
     private String _interAdId;
     private String _rewardAdId;
@@ -90,31 +93,37 @@ public class MaxAdsService implements IAdsService {
     private String _nativeRectAdId;
     private String _nativeSmallAdId;
     private String _openAdsId;
-
     private boolean _apsEnable;
     private String _apsAppId;
     private String _apsBannerId;
     private String _apsMRECId;
     private String _apsInterId;
     private String _apsVideoRewardId;
-
-    private int _bannerPosition;
-    private int _mrecPosition;
-
+    private String _bannerPosition;
+    private String _mrecPosition;
     private Activity _activity;
     private int blockAutoShowInterCount;
-
-
     private MaxAppOpenAd appOpenAd;
-    private long _finishInterAdsTime = 0;
     int coolDownShowInterInSecond;
     boolean isFullscreenAdsShowing;
     boolean isMRECLoaded;
     boolean isMRECLoading;
-
     private Timer timer;
-
     private AmazonAdsService _maxAmazonAdsService;
+    private static AppLovinSdk sSdk;
+
+    private static MaxUnityAdManager sAdManager;
+    private static boolean sIsPluginInitialized = false;
+
+    private static boolean sIsSdkInitialized = false;
+
+    private static boolean isPluginInitialized() {
+        return sIsPluginInitialized;
+    }
+
+    private static boolean isReadyToInteractWithSdk() {
+        return (isPluginInitialized() && sSdk != null);
+    }
 
     @Override
     public void Init(Activity activity, String[] args) {
@@ -122,44 +131,22 @@ public class MaxAdsService implements IAdsService {
             Log.e(TAG, "args is empty!");
             return;
         }
+
         _activity = activity;
 
-        _bannerAdId = args[0];
-        _interAdId = args[1];
-        _rewardAdId = args[2];
-        _mrecAdId = args[3];
-        _nativeRectAdId = args[4];
-        _nativeSmallAdId = args[5];
+        _bannerAdId = args[1];
+        _interAdId = args[2];
+        _rewardAdId = args[3];
+        _mrecAdId = args[4];
+        _nativeRectAdId = args[5];
+        _nativeSmallAdId = args[6];
 
-        _bannerPosition = Integer.parseInt(args[6]);
-        _mrecPosition = Integer.parseInt(args[7]);
 
-        if (args.length >= 9) _openAdsId = args[8];
-        _apsEnable = false;
-        //aps
-        if (args.length >= 12) {
+        _bannerPosition = args[7];
+        _mrecPosition = args[8];
 
-            _apsAppId = args[9];
-            _apsBannerId = args[10];
-            _apsMRECId = args[11];
-            _apsInterId = args[12];
-            _apsVideoRewardId = args[13];
-
-            if (_apsAppId != null && !_apsAppId.equals("")) {
-                _apsEnable = true;
-                Log.d(TAG, "APS _apsAppId:" + _apsAppId);
-
-                Log.d(TAG, "APS _apsBannerId:" + _apsBannerId);
-                Log.d(TAG, "APS _apsInterId:" + _apsInterId);
-                Log.d(TAG, "APS _apsMRECId:" + _apsMRECId);
-                Log.d(TAG, "APS _apsVideoRewardId:" + _apsVideoRewardId);
-
-                _maxAmazonAdsService = new AmazonAdsService();
-                _maxAmazonAdsService.Init(activity, _apsAppId);
-            }
-        }
-
-        MaxUnityPlugin.initializeSdk();
+        if (args.length >= 10)
+            _openAdsId = args[9];
 
         mRectBannerState = 0;
         mRectShowFlag = 1;
@@ -174,22 +161,39 @@ public class MaxAdsService implements IAdsService {
         AppLovinSdk.getInstance(activity.getApplicationContext()).getSettings().setVerboseLogging(BuildConfig.DEBUG);
         AppLovinSdk.getInstance(activity.getApplicationContext()).getSettings().setCreativeDebuggerEnabled(BuildConfig.DEBUG);
 
-        AppLovinSdk.initializeSdk(activity.getApplicationContext(), new AppLovinSdk.SdkInitializationListener() {
-            @Override
-            public void onSdkInitialized(final AppLovinSdkConfiguration configuration) {
-                Log.d(TAG, "onSdkInitialized");
 
-                InitVideoRewardAds(_activity);
-                InitInterAds(_activity);
+    }
 
-//                //cache MREC
-                LoadMREC(_activity, _mrecPosition);
+    private String GenerateMetaData() {
+        JSONObject args = new JSONObject();
+        JsonUtils.putString(args, "UnityVersion", "2022.3.20f1");
+        JsonUtils.putString(args, "GraphicsMemorySizeMegabytes", "2048");
+        return args.toString();
+    }
 
-                if (BuildConfig.DEBUG) {
-                    AppLovinSdk.getInstance(activity.getApplicationContext()).showMediationDebugger();
-                }
+    public void InitAPS(Activity activity, String[] args) {
+        //aps
+        _apsEnable = false;
+        if (args.length >= 12) {
+
+            _apsAppId = args[9];
+            _apsBannerId = args[10];
+            _apsMRECId = args[11];
+            _apsInterId = args[12];
+            _apsVideoRewardId = args[13];
+
+            if (_apsAppId != null && !_apsAppId.equals("")) {
+                _apsEnable = true;
+//                Log.d(TAG, "APS _apsAppId:" + _apsAppId);
+//                Log.d(TAG, "APS _apsBannerId:" + _apsBannerId);
+//                Log.d(TAG, "APS _apsInterId:" + _apsInterId);
+//                Log.d(TAG, "APS _apsMRECId:" + _apsMRECId);
+//                Log.d(TAG, "APS _apsVideoRewardId:" + _apsVideoRewardId);
+
+                _maxAmazonAdsService = new AmazonAdsService();
+                _maxAmazonAdsService.Init(activity, _apsAppId);
             }
-        });
+        }
     }
 
     @Override
@@ -220,10 +224,9 @@ public class MaxAdsService implements IAdsService {
 
     //private
     void InitVideoRewardAds(Activity activity) {
-//        String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
         String videoRewardKey = _rewardAdId;
-        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, activity);
 
+        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, activity);
         mRewardedAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
