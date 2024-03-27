@@ -26,12 +26,15 @@ android {
 }
 
 dependencies {
+//    implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'com.applovin:applovin-sdk:+'
+
     implementation 'com.applovin.mediation:amazon-tam-adapter:+'
     implementation 'com.amazon.android:aps-sdk:+'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation project(':base')
     implementation project(':remoteconfig')
     implementation project(':ads')
+    implementation files('libs/unity-classes.jar')
 //    implementation 'androidx.lifecycle:lifecycle-process:2.6.1'
 }
