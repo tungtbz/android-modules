@@ -52,6 +52,7 @@ import com.rofi.ads.IAdsService;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
 import com.rofi.remoteconfig.FirebaseRemoteConfigService;
+import com.unity3d.player.UnityPlayer;
 
 import org.json.JSONObject;
 
@@ -67,7 +68,11 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRevenueListener, MaxAdReviewListener {
+public class MaxAdsService implements IAdsService,
+        MaxAdViewAdListener,
+        MaxRewardedAdListener,
+        MaxAdRevenueListener,
+        MaxAdReviewListener {
 
     @Override
     public void onAdExpanded(@NonNull MaxAd maxAd) {
@@ -102,7 +107,7 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
         } else if (MaxAdFormat.REWARDED_INTERSTITIAL == adFormat) {
             name = "OnRewardedInterstitialAdLoadedEvent";
         } else {
-            logInvalidAdFormat(adFormat);
+//            logInvalidAdFormat(adFormat);
             return;
         }
         synchronized (this.mAdInfoMapLock) {
@@ -114,7 +119,21 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
 
     @Override
     public void onAdDisplayed(@NonNull MaxAd maxAd) {
-
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (!adFormat.isFullscreenAd())
+            return;
+        if (MaxAdFormat.INTERSTITIAL == adFormat) {
+            name = "OnInterstitialDisplayedEvent";
+        } else if (MaxAdFormat.APP_OPEN == adFormat) {
+            name = "OnAppOpenAdDisplayedEvent";
+        } else if (MaxAdFormat.REWARDED == adFormat) {
+            name = "OnRewardedAdDisplayedEvent";
+        } else {
+            name = "OnRewardedInterstitialAdDisplayedEvent";
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
     }
 
     @Override
@@ -124,12 +143,69 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
 
     @Override
     public void onAdClicked(@NonNull MaxAd maxAd) {
-
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (MaxAdFormat.BANNER == adFormat || MaxAdFormat.LEADER == adFormat) {
+            name = "OnBannerAdClickedEvent";
+        } else if (MaxAdFormat.MREC == adFormat) {
+            name = "OnMRecAdClickedEvent";
+        } else if (MaxAdFormat.INTERSTITIAL == adFormat) {
+            name = "OnInterstitialClickedEvent";
+        } else if (MaxAdFormat.APP_OPEN == adFormat) {
+            name = "OnAppOpenAdClickedEvent";
+        } else if (MaxAdFormat.REWARDED == adFormat) {
+            name = "OnRewardedAdClickedEvent";
+        } else if (MaxAdFormat.REWARDED_INTERSTITIAL == adFormat) {
+            name = "OnRewardedInterstitialAdClickedEvent";
+        } else {
+//            logInvalidAdFormat(adFormat);
+            return;
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
     }
 
     @Override
-    public void onAdLoadFailed(@NonNull String s, @NonNull MaxError maxError) {
-
+    public void onAdLoadFailed(@NonNull String adUnitId, @NonNull MaxError maxError) {
+        String name;
+        if (TextUtils.isEmpty(adUnitId)) {
+//            logStackTrace(new IllegalArgumentException("adUnitId cannot be null"));
+            e("adUnitId cannot be null");
+            return;
+        }
+        if (this.mAdViews.containsKey(adUnitId)) {
+            MaxAdFormat adViewAdFormat = this.mAdViewAdFormats.get(adUnitId);
+            if (MaxAdFormat.MREC == adViewAdFormat) {
+                name = "OnMRecAdLoadFailedEvent";
+            } else {
+                name = "OnBannerAdLoadFailedEvent";
+            }
+        } else if (this.mInterstitials.containsKey(adUnitId)) {
+            name = "OnInterstitialLoadFailedEvent";
+        } else if (this.mAppOpenAds.containsKey(adUnitId)) {
+            name = "OnAppOpenAdLoadFailedEvent";
+        } else if (this.mRewardedAds.containsKey(adUnitId)) {
+            name = "OnRewardedAdLoadFailedEvent";
+        }
+//        else if (this.mRewardedInterstitialAds.containsKey(adUnitId)) {
+//            name = "OnRewardedInterstitialAdLoadFailedEvent";
+//        }
+        else {
+//            logStackTrace(new IllegalStateException("invalid adUnitId: " + adUnitId));
+            return;
+        }
+        synchronized (this.mAdInfoMapLock) {
+            this.mAdInfoMap.remove(adUnitId);
+        }
+        JSONObject args = new JSONObject();
+        JsonUtils.putString(args, "name", name);
+        JsonUtils.putString(args, "adUnitId", adUnitId);
+        JsonUtils.putString(args, "errorCode", Integer.toString(maxError.getCode()));
+        JsonUtils.putString(args, "errorMessage", maxError.getMessage());
+        String adLoadFailureInfo = maxError.getAdLoadFailureInfo();
+        JsonUtils.putString(args, "adLoadFailureInfo", !TextUtils.isEmpty(adLoadFailureInfo) ? adLoadFailureInfo : "");
+        JsonUtils.putString(args, "latencyMillis", String.valueOf(maxError.getRequestLatencyMillis()));
+        forwardUnityEvent(args);
     }
 
     @Override
@@ -139,13 +215,55 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
 
     @Override
     public void onAdRevenuePaid(@NonNull MaxAd maxAd) {
-
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (MaxAdFormat.BANNER == adFormat || MaxAdFormat.LEADER == adFormat) {
+            name = "OnBannerAdRevenuePaidEvent";
+        } else if (MaxAdFormat.MREC == adFormat) {
+            name = "OnMRecAdRevenuePaidEvent";
+        } else if (MaxAdFormat.INTERSTITIAL == adFormat) {
+            name = "OnInterstitialAdRevenuePaidEvent";
+        } else if (MaxAdFormat.APP_OPEN == adFormat) {
+            name = "OnAppOpenAdRevenuePaidEvent";
+        } else if (MaxAdFormat.REWARDED == adFormat) {
+            name = "OnRewardedAdRevenuePaidEvent";
+        } else if (MaxAdFormat.REWARDED_INTERSTITIAL == adFormat) {
+            name = "OnRewardedInterstitialAdRevenuePaidEvent";
+        } else {
+//            logInvalidAdFormat(adFormat);
+            return;
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args, adFormat.isFullscreenAd());
     }
 
     @Override
     public void onCreativeIdGenerated(@NonNull String s, @NonNull MaxAd maxAd) {
 
     }
+
+    @Override
+    public void onUserRewarded(MaxAd ad, MaxReward reward) {
+        MaxAdFormat adFormat = ad.getFormat();
+        if (adFormat != MaxAdFormat.REWARDED && adFormat != MaxAdFormat.REWARDED_INTERSTITIAL) {
+//            logInvalidAdFormat(adFormat);
+            return;
+        }
+        String rewardLabel = (reward != null) ? reward.getLabel() : "";
+        int rewardAmountInt = (reward != null) ? reward.getAmount() : 0;
+        String rewardAmount = Integer.toString(rewardAmountInt);
+        String name = (adFormat == MaxAdFormat.REWARDED) ? "OnRewardedAdReceivedRewardEvent" : "OnRewardedInterstitialAdReceivedRewardEvent";
+        JSONObject args = getDefaultAdEventParameters(name, ad);
+        JsonUtils.putString(args, "rewardLabel", rewardLabel);
+        JsonUtils.putString(args, "rewardAmount", rewardAmount);
+        forwardUnityEvent(args);
+    }
+
+    @Override
+    public void onRewardedVideoStarted(@NonNull MaxAd maxAd) {}
+
+    @Override
+    public void onRewardedVideoCompleted(@NonNull MaxAd maxAd) {}
 
     protected static class Insets {
         int left;
@@ -224,6 +342,10 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
     private Timer timer;
     private AmazonAdsService _maxAmazonAdsService;
     private final Map<String, MaxAdView> mAdViews;
+    private final Map<String, MaxInterstitialAd> mInterstitials;
+    private final Map<String, MaxAppOpenAd> mAppOpenAds;
+    private final Map<String, MaxRewardedAd> mRewardedAds;
+
     private final Map<String, MaxAdFormat> mAdViewAdFormats;
     private final Map<String, String> mAdViewPositions;
     private final Map<String, Point> mAdViewOffsets;
@@ -241,9 +363,14 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
     private Integer mPublisherBannerBackgroundColor = null;
     private View mSafeAreaBackground;
     private static final Point DEFAULT_AD_VIEW_OFFSET = new Point(0, 0);
+    private static BackgroundCallback backgroundCallback;
 
     public MaxAdsService() {
         this.mAdViews = new HashMap<>(2);
+        this.mInterstitials = new HashMap<>(2);
+        this.mAppOpenAds = new HashMap<>(2);
+        this.mRewardedAds = new HashMap<>(2);
+
         this.mAdViewAdFormats = new HashMap<>(2);
         this.mAdViewPositions = new HashMap<>(2);
         this.mAdViewOffsets = new HashMap<>(2);
@@ -324,8 +451,8 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
         sThreadPoolExecutor.execute(new Runnable() {
             public void run() {
                 String serializedParameters = args.toString();
-                if (forwardInBackground) {
-                    MaxUnityAdManager.backgroundCallback.onEvent(serializedParameters);
+                if (forwardInBackground && MaxAdsService.backgroundCallback != null) {
+                    MaxAdsService.backgroundCallback.onEvent(serializedParameters);
                 } else {
                     UnityPlayer.UnitySendMessage("MaxSdkCallbacks", "ForwardEvent", serializedParameters);
                 }
@@ -516,6 +643,41 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
         insets.right = displayCutout.getSafeInsetRight();
         insets.bottom = displayCutout.getSafeInsetBottom();
         return insets;
+    }
+
+    private MaxInterstitialAd retrieveInterstitial(String adUnitId) {
+        MaxInterstitialAd result = this.mInterstitials.get(adUnitId);
+        if (result == null) {
+            result = new MaxInterstitialAd(adUnitId, this.sdk, getCurrentActivity());
+            result.setListener(this);
+            result.setRevenueListener(this);
+            result.setAdReviewListener(this);
+            this.mInterstitials.put(adUnitId, result);
+        }
+        return result;
+    }
+
+    private MaxAppOpenAd retrieveAppOpenAd(String adUnitId) {
+        MaxAppOpenAd result = this.mAppOpenAds.get(adUnitId);
+        if (result == null) {
+            result = new MaxAppOpenAd(adUnitId, this.sdk);
+            result.setListener(this);
+            result.setRevenueListener(this);
+            this.mAppOpenAds.put(adUnitId, result);
+        }
+        return result;
+    }
+
+    private MaxRewardedAd retrieveRewardedAd(String adUnitId) {
+        MaxRewardedAd result = this.mRewardedAds.get(adUnitId);
+        if (result == null) {
+            result = MaxRewardedAd.getInstance(adUnitId, this.sdk, getCurrentActivity());
+            result.setListener(this);
+            result.setRevenueListener(this);
+            result.setAdReviewListener(this);
+            this.mRewardedAds.put(adUnitId, result);
+        }
+        return result;
     }
 
     @Override
@@ -1275,7 +1437,7 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
                 }
                 ViewParent parent = adView.getParent();
                 if (parent instanceof ViewGroup)
-                    ((ViewGroup)parent).removeView((View)adView);
+                    ((ViewGroup) parent).removeView((View) adView);
                 adView.setListener(null);
                 adView.setRevenueListener(null);
                 adView.setAdReviewListener(null);
@@ -1916,7 +2078,8 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
     }
 
     private static class SdkThreadFactory implements ThreadFactory {
-        private SdkThreadFactory() {}
+        private SdkThreadFactory() {
+        }
 
         public Thread newThread(Runnable r) {
             Thread result = new Thread(r, "AppLovinSdk:Max-Unity-Plugin:shared");
@@ -1929,5 +2092,9 @@ public class MaxAdsService implements IAdsService, MaxAdViewAdListener, MaxAdRev
             });
             return result;
         }
+    }
+
+    public static interface BackgroundCallback {
+        void onEvent(String param1String);
     }
 }
