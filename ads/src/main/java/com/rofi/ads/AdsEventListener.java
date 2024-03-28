@@ -7,7 +7,6 @@ public interface AdsEventListener {
 
     void onVideoRewardUserRewarded(String requestCode);
 
-
     void onInterLoaded();
 
     void onInterDisplayed();

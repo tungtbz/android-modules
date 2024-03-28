@@ -11,9 +11,9 @@ public interface IAdsService {
     void ShowReward(int requestCode);
 
     //inter
-    boolean IsInterReady();
+    boolean isInterstitialReady();
 
-    void ShowInter(int requestCode);
+    void showInterstitial(int requestCode);
 
     //banner
     void ShowBanner(Activity activity);
@@ -21,9 +21,9 @@ public interface IAdsService {
     void HideBanner();
 
     //mrec
-    void ShowMREC(Activity activity);
+    void showMRec(Activity activity);
 
-    void HideMREC();
+    void hideMRec();
 
     //native mrec
     void ShowNativeMREC(Activity activity);
@@ -45,11 +45,11 @@ public interface IAdsService {
 
     void DecreaseBlockAutoShowInter();
 
-    void LoadOpenAppAds(Activity activity);
+    void loadAppOpenAd(Activity activity);
 
-    void ShowOpenAppAds(Activity activity);
+    void showAppOpenAd(Activity activity);
 
-    boolean IsOpenAppAdsAvailable();
+    boolean isAppOpenAdReady();
 
     void DisableResumeAds();
     void EnableResumeAds();

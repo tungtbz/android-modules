@@ -76,12 +76,38 @@ public class MaxAdsService implements IAdsService,
 
     @Override
     public void onAdExpanded(@NonNull MaxAd maxAd) {
-
+        MaxAdsService.d("onAdExpanded");
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (!adFormat.isAdViewAd()) {
+            MaxAdsService.d("onAdExpanded " + adFormat);
+            return;
+        }
+        if (MaxAdFormat.MREC == adFormat) {
+            name = "OnMRecAdExpandedEvent";
+        } else {
+            name = "OnBannerAdExpandedEvent";
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
     }
 
     @Override
     public void onAdCollapsed(@NonNull MaxAd maxAd) {
-
+        MaxAdsService.d("onAdCollapsed");
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (!adFormat.isAdViewAd()) {
+            MaxAdsService.d("onAdCollapsed " + adFormat);
+            return;
+        }
+        if (MaxAdFormat.MREC == adFormat) {
+            name = "OnMRecAdCollapsedEvent";
+        } else {
+            name = "OnBannerAdCollapsedEvent";
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
     }
 
     @Override
@@ -113,6 +139,7 @@ public class MaxAdsService implements IAdsService,
         synchronized (this.mAdInfoMapLock) {
             this.mAdInfoMap.put(maxAd.getAdUnitId(), maxAd);
         }
+
         JSONObject args = getDefaultAdEventParameters(name, maxAd);
         forwardUnityEvent(args);
     }
@@ -138,7 +165,21 @@ public class MaxAdsService implements IAdsService,
 
     @Override
     public void onAdHidden(@NonNull MaxAd maxAd) {
-
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (!adFormat.isFullscreenAd())
+            return;
+        if (MaxAdFormat.INTERSTITIAL == adFormat) {
+            name = "OnInterstitialHiddenEvent";
+        } else if (MaxAdFormat.APP_OPEN == adFormat) {
+            name = "OnAppOpenAdHiddenEvent";
+        } else if (MaxAdFormat.REWARDED == adFormat) {
+            name = "OnRewardedAdHiddenEvent";
+        } else {
+            name = "OnRewardedInterstitialAdHiddenEvent";
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
     }
 
     @Override
@@ -233,6 +274,7 @@ public class MaxAdsService implements IAdsService,
 //            logInvalidAdFormat(adFormat);
             return;
         }
+
         JSONObject args = getDefaultAdEventParameters(name, maxAd);
         forwardUnityEvent(args, adFormat.isFullscreenAd());
     }
@@ -260,10 +302,12 @@ public class MaxAdsService implements IAdsService,
     }
 
     @Override
-    public void onRewardedVideoStarted(@NonNull MaxAd maxAd) {}
+    public void onRewardedVideoStarted(@NonNull MaxAd maxAd) {
+    }
 
     @Override
-    public void onRewardedVideoCompleted(@NonNull MaxAd maxAd) {}
+    public void onRewardedVideoCompleted(@NonNull MaxAd maxAd) {
+    }
 
     protected static class Insets {
         int left;
@@ -276,7 +320,8 @@ public class MaxAdsService implements IAdsService,
     }
 
     private final String TAG = "MaxAdsService";
-    private static final ScheduledThreadPoolExecutor sThreadPoolExecutor = new ScheduledThreadPoolExecutor(3, new SdkThreadFactory());
+    private static final ScheduledThreadPoolExecutor sThreadPoolExecutor =
+            new ScheduledThreadPoolExecutor(3, new SdkThreadFactory());
 
     private MaxInterstitialAd mInterstitialAd;
     private int mRetryAttemptInterstitialAds;
@@ -318,7 +363,7 @@ public class MaxAdsService implements IAdsService,
     private String _mrecAdId;
     private String _nativeRectAdId;
     private String _nativeSmallAdId;
-    private String _openAdsId;
+    private String _appOpenAdId;
 
     private boolean _apsEnable;
     private String _apsAppId;
@@ -698,7 +743,7 @@ public class MaxAdsService implements IAdsService,
         _bannerPosition = Integer.parseInt(args[6]);
         _mrecPosition = Integer.parseInt(args[7]);
 
-        if (args.length >= 9) _openAdsId = args[8];
+        if (args.length >= 9) _appOpenAdId = args[8];
         _apsEnable = false;
         //aps
         if (args.length >= 12) {
@@ -772,7 +817,7 @@ public class MaxAdsService implements IAdsService,
             return;
         }
 
-        ShowInter(RESUME_INTER_ADS);
+        showInterstitial(RESUME_INTER_ADS);
     }
 
     //private
@@ -1096,7 +1141,7 @@ public class MaxAdsService implements IAdsService,
 
                 mRectBannerState = 2;
                 if (mRectShowFlag == 1) {
-                    HideMREC();
+                    hideMRec();
                 }
             }
 
@@ -1174,7 +1219,8 @@ public class MaxAdsService implements IAdsService,
 
     private void LogRevenue(MaxAd ad) {
         double revenue = ad.getRevenue(); // In USD
-        Log.d(TAG, "onAdRevenuePaid: revenue MRECT: " + revenue);
+        MaxAdsService.d("onAdRevenuePaid: revenue: " + revenue);
+
         String networkName = ad.getNetworkName(); // Display name of the network that showed the ad (e.g. "AdColony")
         String adUnitId = ad.getAdUnitId(); // The MAX Ad Unit ID
         String adFormatStr = ad.getFormat().getLabel();
@@ -1611,20 +1657,14 @@ public class MaxAdsService implements IAdsService,
 
     @Override
     public boolean IsRewardReady() {
-        if (mRewardedAd == null) return false;
-        return mRewardedAd.isReady();
+        MaxRewardedAd interstitial = retrieveRewardedAd(_rewardAdId);
+        return interstitial.isReady();
     }
 
     @Override
-    public boolean IsInterReady() {
-        if (_isDisableInterAds) {
-            Log.d(TAG, "Inter Ads Is Disabled");
-            return false;
-        }
-        if (mInterstitialAd == null) {
-            return false;
-        }
-        return mInterstitialAd.isReady();
+    public boolean isInterstitialReady() {
+        MaxInterstitialAd interstitial = retrieveInterstitial(_interAdId);
+        return interstitial.isReady();
     }
 
     @Override
@@ -1638,7 +1678,7 @@ public class MaxAdsService implements IAdsService,
     }
 
     @Override
-    public void ShowInter(int requestCode) {
+    public void showInterstitial(int requestCode) {
         Log.d(TAG, "ShowInter: " + requestCode);
 
         if (_isDisableInterAds) {
@@ -1653,7 +1693,7 @@ public class MaxAdsService implements IAdsService,
 
         //show resume ads
         if (requestCode == RESUME_INTER_ADS) {
-            if (IsInterReady()) {
+            if (isInterstitialReady()) {
                 mInterstitialAd.showAd();
             }
             Log.d(TAG, "ShowInter: check 1 ");
@@ -1666,7 +1706,7 @@ public class MaxAdsService implements IAdsService,
             return;
         }
 
-        if (IsInterReady()) {
+        if (isInterstitialReady()) {
             //reset flags
             isClickToAds = false;
             Log.d(TAG, "ShowInter: check 3 ");
@@ -1702,7 +1742,7 @@ public class MaxAdsService implements IAdsService,
     }
 
     @Override
-    public void ShowMREC(Activity activity) {
+    public void showMRec(Activity activity) {
         Log.d(TAG, "ShowMREC");
         if (rectAdView == null) {
             LoadMREC(activity, _mrecPosition);
@@ -1723,7 +1763,7 @@ public class MaxAdsService implements IAdsService,
     }
 
     @Override
-    public void HideMREC() {
+    public void hideMRec() {
         Log.d(TAG, "HideMREC");
         if (mRectBannerState == 2 && rectAdView != null) {
             rectAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
@@ -1946,15 +1986,26 @@ public class MaxAdsService implements IAdsService,
     }
 
     @Override
-    public void OnPause(Activity activity) {
-
+    public void loadAppOpenAd(Activity activity) {
+        MaxAppOpenAd appOpenAd = retrieveAppOpenAd(_appOpenAdId);
+        appOpenAd.loadAd();
     }
 
-    AdsEventListener _adsAdsEventListener;
+    @Override
+    public void showAppOpenAd(Activity activity) {
+        if (appOpenAd == null || !sdk.isInitialized())
+            return;
+
+        if (appOpenAd.isReady()) {
+            MaxAdsService.d("ShowOpenAppAds ");
+            appOpenAd.showAd();
+        }
+    }
 
     @Override
-    public void SetEventListener(AdsEventListener listener) {
-        _adsAdsEventListener = listener;
+    public boolean isAppOpenAdReady() {
+        MaxAppOpenAd appOpenAd = retrieveAppOpenAd(_appOpenAdId);
+        return appOpenAd.isReady();
     }
 
     @Override
@@ -1971,89 +2022,11 @@ public class MaxAdsService implements IAdsService,
     }
 
     @Override
-    public void LoadOpenAppAds(Activity activity) {
-        Log.d(TAG, "OpenAppAds " + _openAdsId);
-        appOpenAd = new MaxAppOpenAd(_openAdsId, activity.getApplicationContext());
+    public void OnPause(Activity activity) {
 
-        appOpenAd.setRevenueListener(maxAd -> {
-        });
-
-        appOpenAd.setListener(new MaxAdViewAdListener() {
-            @Override
-            public void onAdExpanded(MaxAd maxAd) {
-
-            }
-
-            @Override
-            public void onAdCollapsed(MaxAd maxAd) {
-
-            }
-
-            @Override
-            public void onAdLoaded(MaxAd maxAd) {
-                Log.d(TAG, "Open App On Ad Loaded!");
-            }
-
-            @Override
-            public void onAdDisplayed(MaxAd maxAd) {
-                Log.d(TAG, "Open App onAdDisplayed!");
-                isFullscreenAdsShowing = true;
-
-            }
-
-            @Override
-            public void onAdHidden(MaxAd maxAd) {
-                Log.d(TAG, "Open App onAdHidden!");
-
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        isFullscreenAdsShowing = false;
-                    }
-                }, 2 * 1000);
-
-            }
-
-            @Override
-            public void onAdClicked(MaxAd maxAd) {
-                isClickToAds = true;
-            }
-
-            @Override
-            public void onAdLoadFailed(String s, MaxError maxError) {
-                Log.d(TAG, "Open App On Ad LoadFailed!");
-            }
-
-            @Override
-            public void onAdDisplayFailed(MaxAd maxAd, MaxError maxError) {
-                Log.d(TAG, "Open App On Ad Display Failed!");
-            }
-        });
-
-        //
-        appOpenAd.loadAd();
-    }
-
-    @Override
-    public void ShowOpenAppAds(Activity activity) {
-        if (appOpenAd == null || !AppLovinSdk.getInstance(activity.getApplicationContext()).isInitialized())
-            return;
-
-        if (appOpenAd.isReady()) {
-            Log.d(TAG, "ShowOpenAppAds ");
-            appOpenAd.showAd();
-        }
-    }
-
-    @Override
-    public boolean IsOpenAppAdsAvailable() {
-        if (appOpenAd == null) return false;
-
-        return appOpenAd.isReady();
     }
 
     private boolean _isDisableResumeAds;
-
 
     @Override
     public void DisableResumeAds() {
@@ -2075,6 +2048,13 @@ public class MaxAdsService implements IAdsService,
     @Override
     public void EnableInterAds() {
         _isDisableInterAds = false;
+    }
+
+    AdsEventListener _adsAdsEventListener;
+
+    @Override
+    public void SetEventListener(AdsEventListener listener) {
+        _adsAdsEventListener = listener;
     }
 
     private static class SdkThreadFactory implements ThreadFactory {

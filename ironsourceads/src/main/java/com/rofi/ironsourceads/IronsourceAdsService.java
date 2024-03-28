@@ -21,7 +21,6 @@ import com.ironsource.mediationsdk.sdk.LevelPlayBannerListener;
 import com.ironsource.mediationsdk.sdk.LevelPlayInterstitialListener;
 import com.ironsource.mediationsdk.sdk.LevelPlayRewardedVideoListener;
 import com.rofi.ads.AdsEventListener;
-import com.rofi.ads.AdsManager;
 import com.rofi.ads.IAdsService;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
@@ -249,7 +248,7 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     @Override
-    public boolean IsInterReady() {
+    public boolean isInterstitialReady() {
         return IronSource.isInterstitialReady();
     }
 
@@ -264,7 +263,7 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     @Override
-    public void ShowInter(int requestCode) {
+    public void showInterstitial(int requestCode) {
         if (_isDisableInterAds) {
             Log.e(TAG, "Failed To Show Inter: _isDisableInterAds");
             return;
@@ -272,7 +271,7 @@ public class IronsourceAdsService implements IAdsService {
 
         //force show inter ads
         if (requestCode == 1) {
-            if (IsInterReady()) {
+            if (isInterstitialReady()) {
                 Log.d(TAG, "ShowInter when resume");
                 IronSource.showInterstitial();
             } else {
@@ -287,7 +286,7 @@ public class IronsourceAdsService implements IAdsService {
             return;
         }
 
-        if (IsInterReady()) {
+        if (isInterstitialReady()) {
             //reset flags
             isAdClicked = false;
             isCoolDownShowInter = true;
@@ -374,13 +373,13 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     @Override
-    public void ShowMREC(Activity activity) {
+    public void showMRec(Activity activity) {
         Log.d(TAG, "ShowMREC ~~~~~~~~");
         CreateAndLoadRectBanner(activity);
     }
 
     @Override
-    public void HideMREC() {
+    public void hideMRec() {
         Log.d(TAG, "HideMREC");
         if (mRECParentContainer != null && mIronSourceRECBannerLayout != null) {
             mRECParentContainer.setVisibility(View.GONE);
@@ -449,17 +448,17 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     @Override
-    public void LoadOpenAppAds(Activity activity) {
+    public void loadAppOpenAd(Activity activity) {
 
     }
 
     @Override
-    public void ShowOpenAppAds(Activity activity) {
+    public void showAppOpenAd(Activity activity) {
 
     }
 
     @Override
-    public boolean IsOpenAppAdsAvailable() {
+    public boolean isAppOpenAdReady() {
         return false;
     }
 
@@ -637,7 +636,7 @@ public class IronsourceAdsService implements IAdsService {
 
         mIsShowingAppOpenAd = true;
 
-        ShowInter(1);
+        showInterstitial(1);
     }
 
     private void LogRevenue(ImpressionData impressionData) {
