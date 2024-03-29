@@ -32,4 +32,8 @@ public class AdsManager {
     public boolean IsReadyToShowInter() {
         return _isReadyToShowInter;
     }
+
+    public static interface BackgroundCallback {
+        void onEvent(String param1String);
+    }
 }

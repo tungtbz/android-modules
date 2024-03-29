@@ -21,6 +21,7 @@ import com.ironsource.mediationsdk.sdk.LevelPlayBannerListener;
 import com.ironsource.mediationsdk.sdk.LevelPlayInterstitialListener;
 import com.ironsource.mediationsdk.sdk.LevelPlayRewardedVideoListener;
 import com.rofi.ads.AdsEventListener;
+import com.rofi.ads.AdsManager;
 import com.rofi.ads.IAdsService;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
@@ -58,7 +59,7 @@ public class IronsourceAdsService implements IAdsService {
     private boolean _bannerLoaded;
 
     @Override
-    public void Init(Activity activity, String[] args) {
+    public void init(Activity activity, String[] args) {
         if (args == null || args.length == 0) {
             Log.e(TAG, "args is empty!");
             return;
@@ -95,6 +96,11 @@ public class IronsourceAdsService implements IAdsService {
         }, IronSource.AD_UNIT.INTERSTITIAL, IronSource.AD_UNIT.REWARDED_VIDEO, IronSource.AD_UNIT.BANNER);
 
         IronSource.shouldTrackNetworkState(activity.getApplicationContext(), true);
+    }
+
+    @Override
+    public void setBackgroundCallback(AdsManager.BackgroundCallback backgroundCallback) {
+
     }
 
     private void setISListener() {
@@ -243,7 +249,7 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     @Override
-    public boolean IsRewardReady() {
+    public boolean isRewardedAdReady() {
         return IronSource.isRewardedVideoAvailable();
     }
 
@@ -253,8 +259,8 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     @Override
-    public void ShowReward(int requestCode) {
-        if (IsRewardReady()) {
+    public void showRewardedAd(int requestCode) {
+        if (isRewardedAdReady()) {
             mCurrentVideoRewardRequestCode = requestCode;
             IronSource.showRewardedVideo();
         } else {
@@ -342,18 +348,19 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     @Override
-    public void ShowBanner(Activity activity) {
-        if (!_useAdmobBanner) {
-            LoadNormalBanner(activity);
-        } else {
-            if (mBannerContainer != null && mBannerContainer.getVisibility() != View.VISIBLE && mIronSourceBannerLayout != null) {
-                mBannerContainer.setVisibility(View.VISIBLE);
-            }
-        }
+    public void showBanner(String position) {
+
+//        if (!_useAdmobBanner) {
+//            LoadNormalBanner(activity);
+//        } else {
+//            if (mBannerContainer != null && mBannerContainer.getVisibility() != View.VISIBLE && mIronSourceBannerLayout != null) {
+//                mBannerContainer.setVisibility(View.VISIBLE);
+//            }
+//        }
     }
 
     @Override
-    public void HideBanner() {
+    public void hideBanner() {
         if (_useAdmobBanner) {
             Log.d(TAG, "HIDE Banner");
             if (mBannerContainer != null && mBannerContainer.getVisibility() != View.GONE && mIronSourceBannerLayout != null) {

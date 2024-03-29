@@ -48,6 +48,7 @@ import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkConfiguration;
 import com.applovin.sdk.AppLovinSdkUtils;
 import com.rofi.ads.AdsEventListener;
+import com.rofi.ads.AdsManager;
 import com.rofi.ads.IAdsService;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
@@ -74,251 +75,6 @@ public class MaxAdsService implements IAdsService,
         MaxAdRevenueListener,
         MaxAdReviewListener {
 
-    @Override
-    public void onAdExpanded(@NonNull MaxAd maxAd) {
-        MaxAdsService.d("onAdExpanded");
-        String name;
-        MaxAdFormat adFormat = maxAd.getFormat();
-        if (!adFormat.isAdViewAd()) {
-            MaxAdsService.d("onAdExpanded " + adFormat);
-            return;
-        }
-        if (MaxAdFormat.MREC == adFormat) {
-            name = "OnMRecAdExpandedEvent";
-        } else {
-            name = "OnBannerAdExpandedEvent";
-        }
-        JSONObject args = getDefaultAdEventParameters(name, maxAd);
-        forwardUnityEvent(args);
-    }
-
-    @Override
-    public void onAdCollapsed(@NonNull MaxAd maxAd) {
-        MaxAdsService.d("onAdCollapsed");
-        String name;
-        MaxAdFormat adFormat = maxAd.getFormat();
-        if (!adFormat.isAdViewAd()) {
-            MaxAdsService.d("onAdCollapsed " + adFormat);
-            return;
-        }
-        if (MaxAdFormat.MREC == adFormat) {
-            name = "OnMRecAdCollapsedEvent";
-        } else {
-            name = "OnBannerAdCollapsedEvent";
-        }
-        JSONObject args = getDefaultAdEventParameters(name, maxAd);
-        forwardUnityEvent(args);
-    }
-
-    @Override
-    public void onAdLoaded(@NonNull MaxAd maxAd) {
-        String name;
-        MaxAdFormat adFormat = maxAd.getFormat();
-        if (adFormat.isAdViewAd()) {
-            if (MaxAdFormat.MREC == adFormat) {
-                name = "OnMRecAdLoadedEvent";
-            } else {
-                name = "OnBannerAdLoadedEvent";
-            }
-            positionAdView(maxAd);
-            MaxAdView adView = retrieveAdView(maxAd.getAdUnitId(), adFormat);
-            if (adView != null && adView.getVisibility() != View.VISIBLE)
-                adView.stopAutoRefresh();
-        } else if (MaxAdFormat.INTERSTITIAL == adFormat) {
-            name = "OnInterstitialLoadedEvent";
-        } else if (MaxAdFormat.APP_OPEN == adFormat) {
-            name = "OnAppOpenAdLoadedEvent";
-        } else if (MaxAdFormat.REWARDED == adFormat) {
-            name = "OnRewardedAdLoadedEvent";
-        } else if (MaxAdFormat.REWARDED_INTERSTITIAL == adFormat) {
-            name = "OnRewardedInterstitialAdLoadedEvent";
-        } else {
-//            logInvalidAdFormat(adFormat);
-            return;
-        }
-        synchronized (this.mAdInfoMapLock) {
-            this.mAdInfoMap.put(maxAd.getAdUnitId(), maxAd);
-        }
-
-        JSONObject args = getDefaultAdEventParameters(name, maxAd);
-        forwardUnityEvent(args);
-    }
-
-    @Override
-    public void onAdDisplayed(@NonNull MaxAd maxAd) {
-        String name;
-        MaxAdFormat adFormat = maxAd.getFormat();
-        if (!adFormat.isFullscreenAd())
-            return;
-        if (MaxAdFormat.INTERSTITIAL == adFormat) {
-            name = "OnInterstitialDisplayedEvent";
-        } else if (MaxAdFormat.APP_OPEN == adFormat) {
-            name = "OnAppOpenAdDisplayedEvent";
-        } else if (MaxAdFormat.REWARDED == adFormat) {
-            name = "OnRewardedAdDisplayedEvent";
-        } else {
-            name = "OnRewardedInterstitialAdDisplayedEvent";
-        }
-        JSONObject args = getDefaultAdEventParameters(name, maxAd);
-        forwardUnityEvent(args);
-    }
-
-    @Override
-    public void onAdHidden(@NonNull MaxAd maxAd) {
-        String name;
-        MaxAdFormat adFormat = maxAd.getFormat();
-        if (!adFormat.isFullscreenAd())
-            return;
-        if (MaxAdFormat.INTERSTITIAL == adFormat) {
-            name = "OnInterstitialHiddenEvent";
-        } else if (MaxAdFormat.APP_OPEN == adFormat) {
-            name = "OnAppOpenAdHiddenEvent";
-        } else if (MaxAdFormat.REWARDED == adFormat) {
-            name = "OnRewardedAdHiddenEvent";
-        } else {
-            name = "OnRewardedInterstitialAdHiddenEvent";
-        }
-        JSONObject args = getDefaultAdEventParameters(name, maxAd);
-        forwardUnityEvent(args);
-    }
-
-    @Override
-    public void onAdClicked(@NonNull MaxAd maxAd) {
-        String name;
-        MaxAdFormat adFormat = maxAd.getFormat();
-        if (MaxAdFormat.BANNER == adFormat || MaxAdFormat.LEADER == adFormat) {
-            name = "OnBannerAdClickedEvent";
-        } else if (MaxAdFormat.MREC == adFormat) {
-            name = "OnMRecAdClickedEvent";
-        } else if (MaxAdFormat.INTERSTITIAL == adFormat) {
-            name = "OnInterstitialClickedEvent";
-        } else if (MaxAdFormat.APP_OPEN == adFormat) {
-            name = "OnAppOpenAdClickedEvent";
-        } else if (MaxAdFormat.REWARDED == adFormat) {
-            name = "OnRewardedAdClickedEvent";
-        } else if (MaxAdFormat.REWARDED_INTERSTITIAL == adFormat) {
-            name = "OnRewardedInterstitialAdClickedEvent";
-        } else {
-//            logInvalidAdFormat(adFormat);
-            return;
-        }
-        JSONObject args = getDefaultAdEventParameters(name, maxAd);
-        forwardUnityEvent(args);
-    }
-
-    @Override
-    public void onAdLoadFailed(@NonNull String adUnitId, @NonNull MaxError maxError) {
-        String name;
-        if (TextUtils.isEmpty(adUnitId)) {
-//            logStackTrace(new IllegalArgumentException("adUnitId cannot be null"));
-            e("adUnitId cannot be null");
-            return;
-        }
-        if (this.mAdViews.containsKey(adUnitId)) {
-            MaxAdFormat adViewAdFormat = this.mAdViewAdFormats.get(adUnitId);
-            if (MaxAdFormat.MREC == adViewAdFormat) {
-                name = "OnMRecAdLoadFailedEvent";
-            } else {
-                name = "OnBannerAdLoadFailedEvent";
-            }
-        } else if (this.mInterstitials.containsKey(adUnitId)) {
-            name = "OnInterstitialLoadFailedEvent";
-        } else if (this.mAppOpenAds.containsKey(adUnitId)) {
-            name = "OnAppOpenAdLoadFailedEvent";
-        } else if (this.mRewardedAds.containsKey(adUnitId)) {
-            name = "OnRewardedAdLoadFailedEvent";
-        }
-//        else if (this.mRewardedInterstitialAds.containsKey(adUnitId)) {
-//            name = "OnRewardedInterstitialAdLoadFailedEvent";
-//        }
-        else {
-//            logStackTrace(new IllegalStateException("invalid adUnitId: " + adUnitId));
-            return;
-        }
-        synchronized (this.mAdInfoMapLock) {
-            this.mAdInfoMap.remove(adUnitId);
-        }
-        JSONObject args = new JSONObject();
-        JsonUtils.putString(args, "name", name);
-        JsonUtils.putString(args, "adUnitId", adUnitId);
-        JsonUtils.putString(args, "errorCode", Integer.toString(maxError.getCode()));
-        JsonUtils.putString(args, "errorMessage", maxError.getMessage());
-        String adLoadFailureInfo = maxError.getAdLoadFailureInfo();
-        JsonUtils.putString(args, "adLoadFailureInfo", !TextUtils.isEmpty(adLoadFailureInfo) ? adLoadFailureInfo : "");
-        JsonUtils.putString(args, "latencyMillis", String.valueOf(maxError.getRequestLatencyMillis()));
-        forwardUnityEvent(args);
-    }
-
-    @Override
-    public void onAdDisplayFailed(@NonNull MaxAd maxAd, @NonNull MaxError maxError) {
-
-    }
-
-    @Override
-    public void onAdRevenuePaid(@NonNull MaxAd maxAd) {
-        String name;
-        MaxAdFormat adFormat = maxAd.getFormat();
-        if (MaxAdFormat.BANNER == adFormat || MaxAdFormat.LEADER == adFormat) {
-            name = "OnBannerAdRevenuePaidEvent";
-        } else if (MaxAdFormat.MREC == adFormat) {
-            name = "OnMRecAdRevenuePaidEvent";
-        } else if (MaxAdFormat.INTERSTITIAL == adFormat) {
-            name = "OnInterstitialAdRevenuePaidEvent";
-        } else if (MaxAdFormat.APP_OPEN == adFormat) {
-            name = "OnAppOpenAdRevenuePaidEvent";
-        } else if (MaxAdFormat.REWARDED == adFormat) {
-            name = "OnRewardedAdRevenuePaidEvent";
-        } else if (MaxAdFormat.REWARDED_INTERSTITIAL == adFormat) {
-            name = "OnRewardedInterstitialAdRevenuePaidEvent";
-        } else {
-//            logInvalidAdFormat(adFormat);
-            return;
-        }
-
-        JSONObject args = getDefaultAdEventParameters(name, maxAd);
-        forwardUnityEvent(args, adFormat.isFullscreenAd());
-    }
-
-    @Override
-    public void onCreativeIdGenerated(@NonNull String s, @NonNull MaxAd maxAd) {
-
-    }
-
-    @Override
-    public void onUserRewarded(MaxAd ad, MaxReward reward) {
-        MaxAdFormat adFormat = ad.getFormat();
-        if (adFormat != MaxAdFormat.REWARDED && adFormat != MaxAdFormat.REWARDED_INTERSTITIAL) {
-//            logInvalidAdFormat(adFormat);
-            return;
-        }
-        String rewardLabel = (reward != null) ? reward.getLabel() : "";
-        int rewardAmountInt = (reward != null) ? reward.getAmount() : 0;
-        String rewardAmount = Integer.toString(rewardAmountInt);
-        String name = (adFormat == MaxAdFormat.REWARDED) ? "OnRewardedAdReceivedRewardEvent" : "OnRewardedInterstitialAdReceivedRewardEvent";
-        JSONObject args = getDefaultAdEventParameters(name, ad);
-        JsonUtils.putString(args, "rewardLabel", rewardLabel);
-        JsonUtils.putString(args, "rewardAmount", rewardAmount);
-        forwardUnityEvent(args);
-    }
-
-    @Override
-    public void onRewardedVideoStarted(@NonNull MaxAd maxAd) {
-    }
-
-    @Override
-    public void onRewardedVideoCompleted(@NonNull MaxAd maxAd) {
-    }
-
-    protected static class Insets {
-        int left;
-
-        int top;
-
-        int right;
-
-        int bottom;
-    }
-
     private final String TAG = "MaxAdsService";
     private static final ScheduledThreadPoolExecutor sThreadPoolExecutor =
             new ScheduledThreadPoolExecutor(3, new SdkThreadFactory());
@@ -329,12 +85,12 @@ public class MaxAdsService implements IAdsService,
     private MaxRewardedAd mRewardedAd;
     private int mRetryAttemptRewardAds;
 
-    private MaxAdView bannerAdView;
+    //    private MaxAdView bannerAdView;
     private MaxAdView rectAdView;
 
     private int mCurrentVideoRewardRequestCode;
     private int mCurrentInterRequestCode;
-    //    private boolean mIsShowingAppOpenAd;
+    //private boolean mIsShowingAppOpenAd;
     //0 not load
     //1 call load ad
     //2 ad loaded
@@ -372,9 +128,6 @@ public class MaxAdsService implements IAdsService,
     private String _apsInterId;
     private String _apsVideoRewardId;
 
-    private int _bannerPosition;
-    private int _mrecPosition;
-
     private Activity _activity;
     private int blockAutoShowInterCount;
 
@@ -408,7 +161,7 @@ public class MaxAdsService implements IAdsService,
     private Integer mPublisherBannerBackgroundColor = null;
     private View mSafeAreaBackground;
     private static final Point DEFAULT_AD_VIEW_OFFSET = new Point(0, 0);
-    private static BackgroundCallback backgroundCallback;
+    private static AdsManager.BackgroundCallback backgroundCallback;
 
     public MaxAdsService() {
         this.mAdViews = new HashMap<>(2);
@@ -461,6 +214,84 @@ public class MaxAdsService implements IAdsService,
                     MaxAdsService.this.positionAdView(adUnitFormats.getKey(), adUnitFormats.getValue());
             }
         });
+    }
+
+    @Override
+    public void init(Activity activity, String[] args) {
+        if (args == null || args.length == 0) {
+            Log.e(TAG, "args is empty!");
+            return;
+        }
+        _activity = activity;
+
+        _bannerAdId = args[0];
+        _interAdId = args[1];
+        _rewardAdId = args[2];
+        _mrecAdId = args[3];
+        _nativeRectAdId = args[4];
+        _nativeSmallAdId = args[5];
+
+        if (args.length >= 9) _appOpenAdId = args[8];
+
+//        mAdViewAdFormats.put(_bannerAdId, MaxAdFormat.BANNER);
+
+        initAPS(args);
+
+        mRectBannerState = 0;
+        mRectShowFlag = 1;
+
+        Context context = activity.getApplicationContext();
+
+        AppLovinPrivacySettings.setHasUserConsent(true, context);
+        AppLovinPrivacySettings.setIsAgeRestrictedUser(false, context);
+        AppLovinPrivacySettings.setDoNotSell(false, context);
+
+        this.sdk = AppLovinSdk.getInstance(getCurrentActivity().getApplicationContext());
+        this.sdk.setMediationProvider("max");
+        this.sdk.getSettings().setVerboseLogging(BuildConfig.DEBUG);
+        this.sdk.getSettings().setCreativeDebuggerEnabled(BuildConfig.DEBUG);
+
+        this.sdk.initializeSdk(new AppLovinSdk.SdkInitializationListener() {
+            @Override
+            public void onSdkInitialized(AppLovinSdkConfiguration appLovinSdkConfiguration) {
+                Log.d(TAG, "onSdkInitialized");
+
+                if (BuildConfig.DEBUG) {
+                    sdk.showMediationDebugger();
+                }
+            }
+        });
+    }
+
+    @Override
+    public void setBackgroundCallback(AdsManager.BackgroundCallback backgroundCallback) {
+        MaxAdsService.backgroundCallback = backgroundCallback;
+    }
+
+    private void initAPS(String[] args) {
+        _apsEnable = false;
+        //aps
+        if (args.length >= 12) {
+
+            _apsAppId = args[9];
+            _apsBannerId = args[10];
+            _apsMRECId = args[11];
+            _apsInterId = args[12];
+            _apsVideoRewardId = args[13];
+
+            if (_apsAppId != null && !_apsAppId.equals("")) {
+                _apsEnable = true;
+                Log.d(TAG, "APS _apsAppId:" + _apsAppId);
+
+                Log.d(TAG, "APS _apsBannerId:" + _apsBannerId);
+                Log.d(TAG, "APS _apsInterId:" + _apsInterId);
+                Log.d(TAG, "APS _apsMRECId:" + _apsMRECId);
+                Log.d(TAG, "APS _apsVideoRewardId:" + _apsVideoRewardId);
+
+                _maxAmazonAdsService = new AmazonAdsService();
+                _maxAmazonAdsService.Init(getCurrentActivity(), _apsAppId);
+            }
+        }
     }
 
     private MaxAdView retrieveAdView(String adUnitId, MaxAdFormat adFormat) {
@@ -726,75 +557,6 @@ public class MaxAdsService implements IAdsService,
     }
 
     @Override
-    public void Init(Activity activity, String[] args) {
-        if (args == null || args.length == 0) {
-            Log.e(TAG, "args is empty!");
-            return;
-        }
-        _activity = activity;
-
-        _bannerAdId = args[0];
-        _interAdId = args[1];
-        _rewardAdId = args[2];
-        _mrecAdId = args[3];
-        _nativeRectAdId = args[4];
-        _nativeSmallAdId = args[5];
-
-        _bannerPosition = Integer.parseInt(args[6]);
-        _mrecPosition = Integer.parseInt(args[7]);
-
-        if (args.length >= 9) _appOpenAdId = args[8];
-        _apsEnable = false;
-        //aps
-        if (args.length >= 12) {
-
-            _apsAppId = args[9];
-            _apsBannerId = args[10];
-            _apsMRECId = args[11];
-            _apsInterId = args[12];
-            _apsVideoRewardId = args[13];
-
-            if (_apsAppId != null && !_apsAppId.equals("")) {
-                _apsEnable = true;
-                Log.d(TAG, "APS _apsAppId:" + _apsAppId);
-
-                Log.d(TAG, "APS _apsBannerId:" + _apsBannerId);
-                Log.d(TAG, "APS _apsInterId:" + _apsInterId);
-                Log.d(TAG, "APS _apsMRECId:" + _apsMRECId);
-                Log.d(TAG, "APS _apsVideoRewardId:" + _apsVideoRewardId);
-
-                _maxAmazonAdsService = new AmazonAdsService();
-                _maxAmazonAdsService.Init(activity, _apsAppId);
-            }
-        }
-
-        mRectBannerState = 0;
-        mRectShowFlag = 1;
-
-        Context context = activity.getApplicationContext();
-
-        AppLovinPrivacySettings.setHasUserConsent(true, context);
-        AppLovinPrivacySettings.setIsAgeRestrictedUser(false, context);
-        AppLovinPrivacySettings.setDoNotSell(false, context);
-
-        this.sdk = AppLovinSdk.getInstance(getCurrentActivity().getApplicationContext());
-        this.sdk.setMediationProvider("max");
-        this.sdk.getSettings().setVerboseLogging(BuildConfig.DEBUG);
-        this.sdk.getSettings().setCreativeDebuggerEnabled(BuildConfig.DEBUG);
-
-        this.sdk.initializeSdk(new AppLovinSdk.SdkInitializationListener() {
-            @Override
-            public void onSdkInitialized(AppLovinSdkConfiguration appLovinSdkConfiguration) {
-                Log.d(TAG, "onSdkInitialized");
-
-                if (BuildConfig.DEBUG) {
-                    AppLovinSdk.getInstance(activity.getApplicationContext()).showMediationDebugger();
-                }
-            }
-        });
-    }
-
-    @Override
     public void onResume(Activity activity) {
         ShowResumeAds();
         setBannerMrecToFront();
@@ -825,7 +587,6 @@ public class MaxAdsService implements IAdsService,
 //        String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
         String videoRewardKey = _rewardAdId;
         mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, activity);
-
         mRewardedAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -1010,13 +771,6 @@ public class MaxAdsService implements IAdsService,
                 Log.d(TAG, "Inter: onAdHidden Normal");
 
                 coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
-
-//                ThreadUltils.startTask(() -> {
-//                    // doTask
-//                    isCoolDownShowInter = false;
-//                    mCurrentInterRequestCode = 0;
-//                    Log.d(TAG, "Inter: onAdHidden Reset Cooldown");
-//                }, coolDownShowInterInSencond * 1000L);
                 RunCountDownToShowInter();
 
                 _adsAdsEventListener.onInterHidden(String.valueOf(mCurrentInterRequestCode));
@@ -1229,20 +983,6 @@ public class MaxAdsService implements IAdsService,
 
     boolean _isBannerLoading;
 
-    private MaxAdFormat getAdViewAdFormat(String adUnitId) {
-        if (this.mAdViewAdFormats.containsKey(adUnitId))
-            return this.mAdViewAdFormats.get(adUnitId);
-        return getDeviceSpecificAdViewAdFormat();
-    }
-
-    private static MaxAdFormat getDeviceSpecificAdViewAdFormat() {
-        return AppLovinSdkUtils.isTablet((Context) getCurrentActivity()) ? MaxAdFormat.LEADER : MaxAdFormat.BANNER;
-    }
-
-    private static Activity getCurrentActivity() {
-        return Utils.getCurrentActivity();
-    }
-
     private void CreateBanner(String adUnitId, String bannerPosition) {
         createAdView(adUnitId, getAdViewAdFormat(adUnitId), bannerPosition, DEFAULT_AD_VIEW_OFFSET);
     }
@@ -1282,6 +1022,7 @@ public class MaxAdsService implements IAdsService,
                 Log.d(TAG, "Creating " + adFormat.getLabel() + " with ad unit id \"" + adUnitId + "\" and position: \"" + adViewPosition + "\"");
                 if (MaxAdsService.this.mAdViews.get(adUnitId) != null)
                     Log.w("MaxUnityAdManager", "Trying to create a " + adFormat.getLabel() + " that was already created. This will cause the current ad to be hidden.");
+
                 MaxAdView adView = MaxAdsService.this.retrieveAdView(adUnitId, adFormat, adViewPosition, adViewOffsetPixels);
                 if (adView == null) {
                     Log.e(TAG, "adFormat.getLabel()" + "does not exist");
@@ -1326,7 +1067,8 @@ public class MaxAdsService implements IAdsService,
 //                    MaxAdsService.this.mAdViewCustomDataToSetAfterCreate.remove(adUnitId);
 //                }
 
-                adView.loadAd();
+                if (adFormat.isBannerOrLeaderAd())
+                    _loadBannerInternal(adUnitId);
 
                 if (MaxAdsService.this.mDisabledAutoRefreshAdViewAdUnitIds.contains(adUnitId))
                     adView.stopAutoRefresh();
@@ -1336,6 +1078,42 @@ public class MaxAdsService implements IAdsService,
                 }
             }
         });
+    }
+
+    private void _loadBannerInternal(String bannerAdId) {
+        if (_isBannerLoading) {
+            Log.d(TAG, "_LoadBannerInternal IsLoading....");
+            return;
+        }
+
+        if (_apsEnable && _apsBannerId != null && !_apsBannerId.equals("")) {
+            _maxAmazonAdsService.loadBannerAd(getCurrentActivity(), _apsBannerId, new DTBAdCallback() {
+                @Override
+                public void onFailure(@NonNull AdError adError) {
+                    Log.d(TAG, "APS onFailure " + adError.getMessage());
+                    MaxAdView bannerAdView = retrieveAdView(bannerAdId, getAdViewAdFormat(bannerAdId));
+
+                    bannerAdView.setLocalExtraParameter("amazon_ad_error", adError);
+                    bannerAdView.loadAd();
+                    _isBannerLoading = true;
+                }
+
+                @Override
+                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
+                    Log.d(TAG, "APS onSuccess " + dtbAdResponse.getImpressionUrl());
+                    MaxAdView bannerAdView = retrieveAdView(bannerAdId, getAdViewAdFormat(bannerAdId));
+                    // 'adView' is your instance of MaxAdView
+                    bannerAdView.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
+                    bannerAdView.loadAd();
+                    _isBannerLoading = true;
+                }
+            });
+        } else {
+            MaxAdView bannerAdView = retrieveAdView(bannerAdId, getAdViewAdFormat(bannerAdId));
+            // Load the ad
+            bannerAdView.loadAd();
+            _isBannerLoading = true;
+        }
     }
 
     private void showAdView(final String adUnitId, final MaxAdFormat adFormat) {
@@ -1507,130 +1285,88 @@ public class MaxAdsService implements IAdsService,
         return getAdViewLayout(adUnitId, MaxAdFormat.MREC);
     }
 
-    private void LoadNormalBanner(Activity activity, int position) {
-//        String bannerKey = activity.getResources().getString(R.string.applovin_banner_key);
-        Log.d(TAG, "Load Banner: " + _bannerAdId);
-
-        bannerAdView = new MaxAdView(_bannerAdId, activity.getApplicationContext());
-        bannerAdView.setRevenueListener(new MaxAdRevenueListener() {
-            @Override
-            public void onAdRevenuePaid(MaxAd ad) {
-                LogRevenue(ad);
-            }
-        });
-
-        bannerAdView.setListener(new MaxAdViewAdListener() {
-            @Override
-            public void onAdExpanded(MaxAd ad) {
-
-            }
-
-            @Override
-            public void onAdCollapsed(MaxAd ad) {
-
-            }
-
-            @Override
-            public void onAdLoaded(MaxAd ad) {
-                _isBannerLoading = false;
-                Log.d(TAG, "BANNER onAdLoaded: ");
-            }
-
-            @Override
-            public void onAdDisplayed(MaxAd ad) {
-                Log.d(TAG, "onAdDisplayed: ");
-            }
-
-            @Override
-            public void onAdHidden(MaxAd ad) {
-
-            }
-
-            @Override
-            public void onAdClicked(MaxAd ad) {
-                _adsAdsEventListener.onAdClicked(ad.getFormat().getLabel());
-                isClickToAds = true;
-            }
-
-            @Override
-            public void onAdLoadFailed(String adUnitId, MaxError error) {
-                _isBannerLoading = false;
-            }
-
-            @Override
-            public void onAdDisplayFailed(MaxAd ad, MaxError error) {
-
-            }
-        });
-
-        // Stretch to the width of the screen for banners to be fully functional
-        int width = ViewGroup.LayoutParams.MATCH_PARENT;
-
-        // Banner height on phones and tablets is 50 and 90, respectively
-//        int heightPx = activity.getResources().getDimensionPixelSize(R.dimen.banner_height);
-
-//         Get the adaptive banner height.
-        int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight();
-        int heightPx = AppLovinSdkUtils.dpToPx(activity, heightDp);
-        bannerAdView.setExtraParameter("adaptive_banner", "true");
-        bannerAdView.setBackgroundColor(Color.rgb(0, 0, 0));
-
-        int gravity = 0;
-        if (position == Constants.POSITION_CENTER_TOP)
-            gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        else gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-        bannerAdView.setLayoutParams(new FrameLayout.LayoutParams(width, heightPx, gravity));
-
-        ViewGroup rootView = activity.findViewById(android.R.id.content);
-        rootView.addView(bannerAdView);
-
-        _LoadBannerInternal(activity);
-    }
-
-    private void _LoadBannerInternal(Activity activity) {
-        if (_isBannerLoading) {
-            Log.d(TAG, "_LoadBannerInternal IsLoading....");
-            return;
-        }
-
-        if (_apsEnable && _apsBannerId != null && !_apsBannerId.equals("")) {
-            _maxAmazonAdsService.loadBannerAd(activity, _apsBannerId, new DTBAdCallback() {
-                @Override
-                public void onFailure(@NonNull AdError adError) {
-                    Log.d(TAG, "APS onFailure " + adError.getMessage());
-                    // 'adView' is your instance of MaxAdView
-                    bannerAdView.setLocalExtraParameter("amazon_ad_error", adError);
-                    bannerAdView.loadAd();
-                    _isBannerLoading = true;
-                }
-
-                @Override
-                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
-                    Log.d(TAG, "APS onSuccess " + dtbAdResponse.getImpressionUrl());
-                    // 'adView' is your instance of MaxAdView
-                    bannerAdView.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
-                    bannerAdView.loadAd();
-                    _isBannerLoading = true;
-                }
-            });
-        } else {
-            // Load the ad
-            bannerAdView.loadAd();
-            _isBannerLoading = true;
-        }
-    }
+//    private void LoadNormalBanner(Activity activity, int position) {
+////        String bannerKey = activity.getResources().getString(R.string.applovin_banner_key);
+//        Log.d(TAG, "Load Banner: " + _bannerAdId);
+//
+//        bannerAdView = new MaxAdView(_bannerAdId, activity.getApplicationContext());
+//        bannerAdView.setRevenueListener(new MaxAdRevenueListener() {
+//            @Override
+//            public void onAdRevenuePaid(MaxAd ad) {
+//                LogRevenue(ad);
+//            }
+//        });
+//
+//        bannerAdView.setListener(new MaxAdViewAdListener() {
+//            @Override
+//            public void onAdExpanded(MaxAd ad) {
+//
+//            }
+//
+//            @Override
+//            public void onAdCollapsed(MaxAd ad) {
+//
+//            }
+//
+//            @Override
+//            public void onAdLoaded(MaxAd ad) {
+//                _isBannerLoading = false;
+//                Log.d(TAG, "BANNER onAdLoaded: ");
+//            }
+//
+//            @Override
+//            public void onAdDisplayed(MaxAd ad) {
+//                Log.d(TAG, "onAdDisplayed: ");
+//            }
+//
+//            @Override
+//            public void onAdHidden(MaxAd ad) {
+//
+//            }
+//
+//            @Override
+//            public void onAdClicked(MaxAd ad) {
+//                _adsAdsEventListener.onAdClicked(ad.getFormat().getLabel());
+//                isClickToAds = true;
+//            }
+//
+//            @Override
+//            public void onAdLoadFailed(String adUnitId, MaxError error) {
+//                _isBannerLoading = false;
+//            }
+//
+//            @Override
+//            public void onAdDisplayFailed(MaxAd ad, MaxError error) {
+//
+//            }
+//        });
+//
+//        // Stretch to the width of the screen for banners to be fully functional
+//        int width = ViewGroup.LayoutParams.MATCH_PARENT;
+//
+//        // Banner height on phones and tablets is 50 and 90, respectively
+////        int heightPx = activity.getResources().getDimensionPixelSize(R.dimen.banner_height);
+//
+////         Get the adaptive banner height.
+//        int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight();
+//        int heightPx = AppLovinSdkUtils.dpToPx(activity, heightDp);
+//        bannerAdView.setExtraParameter("adaptive_banner", "true");
+//        bannerAdView.setBackgroundColor(Color.rgb(0, 0, 0));
+//
+//        int gravity = 0;
+//        if (position == Constants.POSITION_CENTER_TOP)
+//            gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+//        else gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+//        bannerAdView.setLayoutParams(new FrameLayout.LayoutParams(width, heightPx, gravity));
+//
+//        ViewGroup rootView = activity.findViewById(android.R.id.content);
+//        rootView.addView(bannerAdView);
+//
+//        _LoadBannerInternal(activity);
+//    }
 
     private void ShowNormalBanner(Activity activity, int position) {
-        if (bannerAdView != null) {
-//            Log.d(TAG, "ShowBottomBannerAppLovin: 1");
-            if (bannerAdView.getVisibility() != View.VISIBLE)
-                bannerAdView.setVisibility(View.VISIBLE);
-
-            bannerAdView.startAutoRefresh();
-        } else {
-//            Log.d(TAG, "ShowBottomBannerAppLovin: 2");
-            LoadNormalBanner(activity, position);
-        }
+        showAdView(_bannerAdId, getAdViewAdFormat(_bannerAdId));
     }
 
     private static void d(String message) {
@@ -1644,19 +1380,11 @@ public class MaxAdsService implements IAdsService,
     }
 
     private void HideNormalBanner() {
-        Log.d(TAG, "StopBottomBanner");
-        if (bannerAdView != null) {
-
-            // Set this extra parameter to work around SDK bug that ignores calls to stopAutoRefresh()
-            bannerAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
-            bannerAdView.stopAutoRefresh();
-
-            bannerAdView.setVisibility(View.GONE);
-        }
+        hideAdView(_bannerAdId, getAdViewAdFormat(_bannerAdId));
     }
 
     @Override
-    public boolean IsRewardReady() {
+    public boolean isRewardedAdReady() {
         MaxRewardedAd interstitial = retrieveRewardedAd(_rewardAdId);
         return interstitial.isReady();
     }
@@ -1668,8 +1396,8 @@ public class MaxAdsService implements IAdsService,
     }
 
     @Override
-    public void ShowReward(int requestCode) {
-        if (IsRewardReady()) {
+    public void showRewardedAd(int requestCode) {
+        if (isRewardedAdReady()) {
             mCurrentVideoRewardRequestCode = requestCode;
             mRewardedAd.showAd();
         } else {
@@ -1719,24 +1447,19 @@ public class MaxAdsService implements IAdsService,
     }
 
     @Override
-    public void ShowBanner(Activity activity) {
-        Log.d(TAG, "ShowBanner");
-        ShowNormalBanner(activity, _bannerPosition);
+    public void showBanner(String position) {
+        MaxAdView result = this.mAdViews.get(_bannerAdId);
+        if (result == null) {
+            MaxAdsService.d("Banner is null, create new banner!");
+            createAdView(_bannerAdId, getAdViewAdFormat(_bannerAdId), position, DEFAULT_AD_VIEW_OFFSET);
+            return;
+        }
 
-//        int type = FirebaseRemoteConfigService.getInstance().GetInt(Constants.RK_BANNER_TYPE_OF_SCREEN + screenCode);
-//        Log.d(TAG, "ShowBanner for screen: " + screenCode + " with position: " + _bannerPosition + ", type: " + type);
-//
-//        if (type == 0) {
-//            // Show Normal Banner
-//
-//        } else if (type == 1) {
-//            // Show Native Banner
-//            ShowNativeBanner(activity, _bannerPosition);
-//        }
+        this.showAdView(_bannerAdId, getAdViewAdFormat(_bannerAdId));
     }
 
     @Override
-    public void HideBanner() {
+    public void hideBanner() {
         HideNormalBanner();
         HideNativeBanner();
     }
@@ -1744,37 +1467,38 @@ public class MaxAdsService implements IAdsService,
     @Override
     public void showMRec(Activity activity) {
         Log.d(TAG, "ShowMREC");
-        if (rectAdView == null) {
-            LoadMREC(activity, _mrecPosition);
-            return;
-        }
 
-        mRectShowFlag = 2;
-
-        if (rectAdView.getVisibility() != View.VISIBLE) {
-            rectAdView.setVisibility(View.VISIBLE);
-
-            rectAdView.startAutoRefresh();
-
-            if (!isMRECLoading && !isMRECLoaded) {
-                rectAdView.loadAd();
-            }
-        }
+//        if (rectAdView == null) {
+//            LoadMREC(activity, _mrecPosition);
+//            return;
+//        }
+//
+//        mRectShowFlag = 2;
+//
+//        if (rectAdView.getVisibility() != View.VISIBLE) {
+//            rectAdView.setVisibility(View.VISIBLE);
+//
+//            rectAdView.startAutoRefresh();
+//
+//            if (!isMRECLoading && !isMRECLoaded) {
+//                rectAdView.loadAd();
+//            }
+//        }
     }
 
     @Override
     public void hideMRec() {
         Log.d(TAG, "HideMREC");
-        if (mRectBannerState == 2 && rectAdView != null) {
-            rectAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
-            rectAdView.stopAutoRefresh();
-        }
-
-        if (rectAdView != null && rectAdView.getVisibility() == View.VISIBLE) {
-            rectAdView.setVisibility(View.GONE);
-        }
-
-        mRectShowFlag = 1;
+//        if (mRectBannerState == 2 && rectAdView != null) {
+//            rectAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
+//            rectAdView.stopAutoRefresh();
+//        }
+//
+//        if (rectAdView != null && rectAdView.getVisibility() == View.VISIBLE) {
+//            rectAdView.setVisibility(View.GONE);
+//        }
+//
+//        mRectShowFlag = 1;
     }
 
     //fix bug for unity 2022.3.12
@@ -1783,13 +1507,13 @@ public class MaxAdsService implements IAdsService,
             @Override
             public void run() {
 
-                if (rectAdView != null && rectAdView.getVisibility() == View.VISIBLE) {
-                    rectAdView.bringToFront();
-                }
-
-                if (bannerAdView != null && bannerAdView.getVisibility() == View.VISIBLE) {
-                    bannerAdView.bringToFront();
-                }
+//                if (rectAdView != null && rectAdView.getVisibility() == View.VISIBLE) {
+//                    rectAdView.bringToFront();
+//                }
+//
+//                if (bannerAdView != null && bannerAdView.getVisibility() == View.VISIBLE) {
+//                    bannerAdView.bringToFront();
+//                }
             }
         }, 500);
 
@@ -1804,7 +1528,7 @@ public class MaxAdsService implements IAdsService,
             mNativeRectAdsContainer.setVisibility(View.VISIBLE);
             nativeRectAdLoader.loadAd();
         } else {
-            LoadRectNativeAds(activity, _mrecPosition);
+//            LoadRectNativeAds(activity, _mrecPosition);
         }
     }
 
@@ -1826,7 +1550,7 @@ public class MaxAdsService implements IAdsService,
             nativeBannerAdLoader.loadAd();
         } else {
             Log.d(TAG, "ShowNativeBanner: 222");
-            InitNativeBannerAds(activity, _bannerPosition);
+//            InitNativeBannerAds(activity, _bannerPosition);
         }
     }
 
@@ -2057,6 +1781,30 @@ public class MaxAdsService implements IAdsService,
         _adsAdsEventListener = listener;
     }
 
+    protected static class Insets {
+        int left;
+
+        int top;
+
+        int right;
+
+        int bottom;
+    }
+
+    private MaxAdFormat getAdViewAdFormat(String adUnitId) {
+        if (this.mAdViewAdFormats.containsKey(adUnitId))
+            return this.mAdViewAdFormats.get(adUnitId);
+        return getDeviceSpecificAdViewAdFormat();
+    }
+
+    private static MaxAdFormat getDeviceSpecificAdViewAdFormat() {
+        return AppLovinSdkUtils.isTablet((Context) getCurrentActivity()) ? MaxAdFormat.LEADER : MaxAdFormat.BANNER;
+    }
+
+    private static Activity getCurrentActivity() {
+        return Utils.getCurrentActivity();
+    }
+
     private static class SdkThreadFactory implements ThreadFactory {
         private SdkThreadFactory() {
         }
@@ -2074,7 +1822,245 @@ public class MaxAdsService implements IAdsService,
         }
     }
 
-    public static interface BackgroundCallback {
-        void onEvent(String param1String);
+    //max ads callbacks
+    @Override
+    public void onAdExpanded(@NonNull MaxAd maxAd) {
+        MaxAdsService.d("onAdExpanded");
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (!adFormat.isAdViewAd()) {
+            MaxAdsService.d("onAdExpanded " + adFormat);
+            return;
+        }
+        if (MaxAdFormat.MREC == adFormat) {
+            name = "OnMRecAdExpandedEvent";
+        } else {
+            name = "OnBannerAdExpandedEvent";
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
+    }
+
+    @Override
+    public void onAdCollapsed(@NonNull MaxAd maxAd) {
+        MaxAdsService.d("onAdCollapsed");
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (!adFormat.isAdViewAd()) {
+            MaxAdsService.d("onAdCollapsed " + adFormat);
+            return;
+        }
+        if (MaxAdFormat.MREC == adFormat) {
+            name = "OnMRecAdCollapsedEvent";
+        } else {
+            name = "OnBannerAdCollapsedEvent";
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
+    }
+
+    @Override
+    public void onAdLoaded(@NonNull MaxAd maxAd) {
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (adFormat.isAdViewAd()) {
+            if (MaxAdFormat.MREC == adFormat) {
+                name = "OnMRecAdLoadedEvent";
+            } else {
+                name = "OnBannerAdLoadedEvent";
+                _isBannerLoading = false;
+            }
+            positionAdView(maxAd);
+
+            MaxAdView adView = retrieveAdView(maxAd.getAdUnitId(), adFormat);
+            if (adView != null && adView.getVisibility() != View.VISIBLE)
+                adView.stopAutoRefresh();
+        } else if (MaxAdFormat.INTERSTITIAL == adFormat) {
+            name = "OnInterstitialLoadedEvent";
+        } else if (MaxAdFormat.APP_OPEN == adFormat) {
+            name = "OnAppOpenAdLoadedEvent";
+        } else if (MaxAdFormat.REWARDED == adFormat) {
+            name = "OnRewardedAdLoadedEvent";
+        } else if (MaxAdFormat.REWARDED_INTERSTITIAL == adFormat) {
+            name = "OnRewardedInterstitialAdLoadedEvent";
+        } else {
+//            logInvalidAdFormat(adFormat);
+            return;
+        }
+
+        synchronized (this.mAdInfoMapLock) {
+            this.mAdInfoMap.put(maxAd.getAdUnitId(), maxAd);
+        }
+
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
+    }
+
+
+    @Override
+    public void onAdLoadFailed(@NonNull String adUnitId, @NonNull MaxError maxError) {
+        String name;
+        if (TextUtils.isEmpty(adUnitId)) {
+//            logStackTrace(new IllegalArgumentException("adUnitId cannot be null"));
+            e("adUnitId cannot be null");
+            return;
+        }
+        if (this.mAdViews.containsKey(adUnitId)) {
+            MaxAdFormat adViewAdFormat = this.mAdViewAdFormats.get(adUnitId);
+            if (MaxAdFormat.MREC == adViewAdFormat) {
+                name = "OnMRecAdLoadFailedEvent";
+            } else {
+                name = "OnBannerAdLoadFailedEvent";
+                _isBannerLoading = false;
+            }
+        } else if (this.mInterstitials.containsKey(adUnitId)) {
+            name = "OnInterstitialLoadFailedEvent";
+        } else if (this.mAppOpenAds.containsKey(adUnitId)) {
+            name = "OnAppOpenAdLoadFailedEvent";
+        } else if (this.mRewardedAds.containsKey(adUnitId)) {
+            name = "OnRewardedAdLoadFailedEvent";
+        }
+//        else if (this.mRewardedInterstitialAds.containsKey(adUnitId)) {
+//            name = "OnRewardedInterstitialAdLoadFailedEvent";
+//        }
+        else {
+//            logStackTrace(new IllegalStateException("invalid adUnitId: " + adUnitId));
+            return;
+        }
+        synchronized (this.mAdInfoMapLock) {
+            this.mAdInfoMap.remove(adUnitId);
+        }
+        JSONObject args = new JSONObject();
+        JsonUtils.putString(args, "name", name);
+        JsonUtils.putString(args, "adUnitId", adUnitId);
+        JsonUtils.putString(args, "errorCode", Integer.toString(maxError.getCode()));
+        JsonUtils.putString(args, "errorMessage", maxError.getMessage());
+        String adLoadFailureInfo = maxError.getAdLoadFailureInfo();
+        JsonUtils.putString(args, "adLoadFailureInfo", !TextUtils.isEmpty(adLoadFailureInfo) ? adLoadFailureInfo : "");
+        JsonUtils.putString(args, "latencyMillis", String.valueOf(maxError.getRequestLatencyMillis()));
+        forwardUnityEvent(args);
+    }
+
+    @Override
+    public void onAdDisplayed(@NonNull MaxAd maxAd) {
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (!adFormat.isFullscreenAd())
+            return;
+        if (MaxAdFormat.INTERSTITIAL == adFormat) {
+            name = "OnInterstitialDisplayedEvent";
+        } else if (MaxAdFormat.APP_OPEN == adFormat) {
+            name = "OnAppOpenAdDisplayedEvent";
+        } else if (MaxAdFormat.REWARDED == adFormat) {
+            name = "OnRewardedAdDisplayedEvent";
+        } else {
+            name = "OnRewardedInterstitialAdDisplayedEvent";
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
+    }
+
+    @Override
+    public void onAdHidden(@NonNull MaxAd maxAd) {
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (!adFormat.isFullscreenAd())
+            return;
+        if (MaxAdFormat.INTERSTITIAL == adFormat) {
+            name = "OnInterstitialHiddenEvent";
+        } else if (MaxAdFormat.APP_OPEN == adFormat) {
+            name = "OnAppOpenAdHiddenEvent";
+        } else if (MaxAdFormat.REWARDED == adFormat) {
+            name = "OnRewardedAdHiddenEvent";
+        } else {
+            name = "OnRewardedInterstitialAdHiddenEvent";
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
+    }
+
+    @Override
+    public void onAdClicked(@NonNull MaxAd maxAd) {
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (MaxAdFormat.BANNER == adFormat || MaxAdFormat.LEADER == adFormat) {
+            name = "OnBannerAdClickedEvent";
+        } else if (MaxAdFormat.MREC == adFormat) {
+            name = "OnMRecAdClickedEvent";
+        } else if (MaxAdFormat.INTERSTITIAL == adFormat) {
+            name = "OnInterstitialClickedEvent";
+        } else if (MaxAdFormat.APP_OPEN == adFormat) {
+            name = "OnAppOpenAdClickedEvent";
+        } else if (MaxAdFormat.REWARDED == adFormat) {
+            name = "OnRewardedAdClickedEvent";
+        } else if (MaxAdFormat.REWARDED_INTERSTITIAL == adFormat) {
+            name = "OnRewardedInterstitialAdClickedEvent";
+        } else {
+//            logInvalidAdFormat(adFormat);
+            return;
+        }
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args);
+    }
+
+
+    @Override
+    public void onAdDisplayFailed(@NonNull MaxAd maxAd, @NonNull MaxError maxError) {
+
+    }
+
+    @Override
+    public void onAdRevenuePaid(@NonNull MaxAd maxAd) {
+        String name;
+        MaxAdFormat adFormat = maxAd.getFormat();
+        if (MaxAdFormat.BANNER == adFormat || MaxAdFormat.LEADER == adFormat) {
+            name = "OnBannerAdRevenuePaidEvent";
+        } else if (MaxAdFormat.MREC == adFormat) {
+            name = "OnMRecAdRevenuePaidEvent";
+        } else if (MaxAdFormat.INTERSTITIAL == adFormat) {
+            name = "OnInterstitialAdRevenuePaidEvent";
+        } else if (MaxAdFormat.APP_OPEN == adFormat) {
+            name = "OnAppOpenAdRevenuePaidEvent";
+        } else if (MaxAdFormat.REWARDED == adFormat) {
+            name = "OnRewardedAdRevenuePaidEvent";
+        } else if (MaxAdFormat.REWARDED_INTERSTITIAL == adFormat) {
+            name = "OnRewardedInterstitialAdRevenuePaidEvent";
+        } else {
+//            logInvalidAdFormat(adFormat);
+            return;
+        }
+
+        JSONObject args = getDefaultAdEventParameters(name, maxAd);
+        forwardUnityEvent(args, adFormat.isFullscreenAd());
+    }
+
+    @Override
+    public void onCreativeIdGenerated(@NonNull String s, @NonNull MaxAd maxAd) {
+
+    }
+
+    @Override
+    public void onUserRewarded(MaxAd ad, MaxReward reward) {
+        MaxAdFormat adFormat = ad.getFormat();
+        if (adFormat != MaxAdFormat.REWARDED && adFormat != MaxAdFormat.REWARDED_INTERSTITIAL) {
+//            logInvalidAdFormat(adFormat);
+            return;
+        }
+        String rewardLabel = (reward != null) ? reward.getLabel() : "";
+        int rewardAmountInt = (reward != null) ? reward.getAmount() : 0;
+        String rewardAmount = Integer.toString(rewardAmountInt);
+        String name = (adFormat == MaxAdFormat.REWARDED) ? "OnRewardedAdReceivedRewardEvent" : "OnRewardedInterstitialAdReceivedRewardEvent";
+        JSONObject args = getDefaultAdEventParameters(name, ad);
+        JsonUtils.putString(args, "rewardLabel", rewardLabel);
+        JsonUtils.putString(args, "rewardAmount", rewardAmount);
+        forwardUnityEvent(args);
+    }
+
+    @Override
+    public void onRewardedVideoStarted(@NonNull MaxAd maxAd) {
+    }
+
+    @Override
+    public void onRewardedVideoCompleted(@NonNull MaxAd maxAd) {
     }
 }
