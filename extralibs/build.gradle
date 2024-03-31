@@ -1,0 +1,82 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+}
+
+// Place the version of your library here
+def getVersionName = { ->
+    return "0.0.1"
+}
+// Add the name of your library here
+def getArtifactId = { ->
+    return "unity-classes"
+}
+
+// Add the group ID of your library here
+def getGroupId = { ->
+    return "com.tungt"
+}
+
+// Prepare URL of maven package.
+// Replace 'mohitrajput987' with your github repo's username or organization name.
+// Replace 'analytics-sdk-android' with the name of github repo
+//https://github.com/tungtbz/extralibs
+def getGitHubUrl = { ->
+    return "https://maven.pkg.github.com/tungtbz/extralibs"
+}
+
+publishing {
+    publications {
+        bar(MavenPublication) {
+            groupId getGroupId()
+            artifactId getArtifactId()
+            version getVersionName()
+            // Place the path of your artifact here
+            artifact("libs/${getArtifactId()}.jar")
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+
+            url = uri(getGitHubUrl())
+            credentials {
+                username = System.getenv("GITHUB_USER_NAME")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+}
+
+
+android {
+    namespace 'com.tungt.extralibs'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 24
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
