@@ -41,8 +41,8 @@ publishing {
 
             url = uri(getGitHubUrl())
             credentials {
-                username = System.getenv("GITHUB_USER_NAME")
-                password = System.getenv("GITHUB_TOKEN")
+                username = file("${GITHUB_USER_NAME}")
+                password = file("${GITHUB_TOKEN}")
             }
         }
     }
@@ -51,10 +51,10 @@ publishing {
 
 android {
     namespace 'com.tungt.extralibs'
-    compileSdk 34
+    compileSdk 33
 
     defaultConfig {
-        minSdk 24
+        minSdk 22
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
