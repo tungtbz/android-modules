@@ -32,3 +32,5 @@ google-services.json
 # Android Profiling
 *.hprof
 /extralibs/gradle.properties
+/maxads/gradle.properties
+/maxads/github.properties
