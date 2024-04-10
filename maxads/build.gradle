@@ -1,5 +1,47 @@
 plugins {
     id 'com.android.library'
+    id 'maven-publish'
+}
+
+// Place the version of your library here
+def getVersionName = { ->
+    return "0.0.1"
+}
+// Add the name of your library here
+def getArtifactId = { ->
+    return "max-ads"
+}
+
+// Add the group ID of your library here
+def getGroupId = { ->
+    return "com.tungt"
+}
+
+def getGitHubUrl = { ->
+    return "https://maven.pkg.github.com/tungtbz/max-asd"
+}
+
+publishing {
+    publications {
+        bar(MavenPublication) {
+            groupId getGroupId()
+            artifactId getArtifactId()
+            version getVersionName()
+            // Place the path of your artifact here
+            artifact("build/outputs/aar/${getArtifactId()}.jar")
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+
+            url = uri(getGitHubUrl())
+            credentials {
+                username = GITHUB_USER_NAME
+                password = GITHUB_TOKEN_PUSH
+            }
+        }
+    }
 }
 
 android {
