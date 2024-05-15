@@ -1,5 +1,55 @@
 plugins {
     id 'com.android.library'
+    id 'maven-publish'
+}
+
+// Place the version of your library here
+def getVersionName = { ->
+    return "0.0.1"
+}
+// Add the name of your library here
+def getReleaseArtifactId = { ->
+    return "analytic-release"
+}
+
+// Add the name of your library here
+def getDebugArtifactId = { ->
+    return "analytic-debug"
+}
+
+// Add the group ID of your library here
+def getGroupId = { ->
+    return "com.funlab.libs"
+}
+
+// Prepare URL of maven package.
+// Replace 'mohitrajput987' with your github repo's username or organization name.
+// Replace 'analytics-sdk-android' with the name of github repo
+def getGitHubUrl = { ->
+    return "https://maven.pkg.github.com/tungtbz/extralibs"
+}
+
+publishing {
+    publications {
+        bar(MavenPublication) {
+            groupId getGroupId()
+            artifactId getReleaseArtifactId()
+            version getVersionName()
+            // Place the path of your artifact here
+            artifact("build/outputs/aar/${getReleaseArtifactId()}.aar")
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+
+            url = uri(getGitHubUrl())
+            credentials {
+                username = GITHUB_USER_NAME
+                password = GITHUB_TOKEN_PUSH
+            }
+        }
+    }
 }
 
 android {
