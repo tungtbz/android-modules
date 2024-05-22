@@ -3,6 +3,7 @@ package com.rofi.admobadshelper;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
@@ -35,6 +36,7 @@ import com.google.android.gms.ads.appopen.AppOpenAd;
 import com.google.android.gms.ads.initialization.AdapterStatus;
 import com.google.android.ump.ConsentInformation;
 import com.rofi.base.Constants;
+import com.unity3d.player.UnityPlayer;
 
 import java.util.Date;
 import java.util.Map;
@@ -89,7 +91,8 @@ public class AdmobHelper {
         bannerPosition = position;
 
         cBannerView = new AdView(activity);
-        cBannerView.setAdSize(AdSize.BANNER);
+        cBannerView.setAdSize(getBannerAdSize(activity));
+//        cBannerView.setAdSize(AdSize.BANNER);
         cBannerView.setAdUnitId(_cBannerId);
         cBannerView.setVisibility(View.GONE);
 
@@ -125,6 +128,11 @@ public class AdmobHelper {
                     adsEventCallback.onAdClicked();
                 }
             }
+
+            @Override
+            public void onAdOpened() {
+                Log.d(TAG, "BANNER onAdOpened");
+            }
         });
 
         int gravity = bannerPosition == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
@@ -138,21 +146,76 @@ public class AdmobHelper {
         rootView.addView(cBannerView);
     }
 
-    private void loadBanner() {
+    Handler handler = new Handler();
+
+    static void runSafelyOnUiThread(Activity activity, final Runnable runner) {
+        activity.runOnUiThread(new Runnable() {
+            public void run() {
+                try {
+                    runner.run();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    static Activity getCurrentActivity() {
+        return UnityPlayer.currentActivity;
+    }
+
+    public void RunAutoRefreshBanner(int refreshTime) {
+        handler.removeCallbacksAndMessages(null);
+
+        Runnable r = new Runnable() {
+            public void run() {
+                runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+                    @Override
+                    public void run() {
+                        Log.d(TAG, "Manual Load Banner refresh Time" + refreshTime);
+                        loadBanner(false);
+                    }
+                });
+
+                handler.postDelayed(this, refreshTime * 1000L);
+            }
+        };
+
+        handler.postDelayed(r, 1);
+    }
+
+    public void ForceLoadBanner() {
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                loadBanner(true);
+            }
+        });
+    }
+
+    public void StopRefresh() {
+        handler.removeCallbacksAndMessages(null);
+    }
+
+    private void loadBanner(boolean isForceLoad) {
         if (_cBannerId == null) return;
         if (cBannerView == null) return;
-        if (bannerAdLoading) return;
-        if (bannerAdLoaded) return;
+
+        if (!isForceLoad && bannerAdLoading) return;
+        if (!isForceLoad && bannerAdLoaded) return;
 
         // Create an extra parameter that aligns the bottom of the expanded ad to
         // the bottom of the bannerView.
         Bundle extras = new Bundle();
         extras.putString("collapsible", bannerPosition == Constants.POSITION_CENTER_TOP ? "top" : "bottom");
-        extras.putString("collapsible_request_id", UUID.randomUUID().toString());
+
+//        extras.putString("collapsible_request_id", UUID.randomUUID().toString());
 
         AdRequest adRequest = new AdRequest.Builder().addNetworkExtrasBundle(AdMobAdapter.class, extras).build();
 
         cBannerView.loadAd(adRequest);
+        Log.d(TAG, "Loading Banner");
+
         bannerAdLoading = true;
     }
 
@@ -170,7 +233,7 @@ public class AdmobHelper {
         }
     }
 
-    private AdSize getAdSize(Activity activity, View view) {
+    private AdSize getBannerAdSize(Activity activity) {
         // Determine the screen width (less decorations) to use for the ad width.
         Display display = activity.getWindowManager().getDefaultDisplay();
         DisplayMetrics outMetrics = new DisplayMetrics();
@@ -178,12 +241,7 @@ public class AdmobHelper {
 
         float density = outMetrics.density;
 
-        float adWidthPixels = view.getWidth();
-
-        // If the ad hasn't been laid out, default to the full screen width.
-        if (adWidthPixels == 0) {
-            adWidthPixels = outMetrics.widthPixels;
-        }
+        float adWidthPixels = outMetrics.widthPixels;
 
         int adWidth = (int) (adWidthPixels / density);
         return AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity.getApplicationContext(), adWidth);
@@ -475,12 +533,10 @@ public class AdmobHelper {
 
                     }
                 });
-
-
             }
             loadMrec();
 
-            loadBanner();
+            loadBanner(true);
         });
     }
 }

@@ -25,7 +25,7 @@ public final class GoogleMobileAdsConsentManager {
         return isConsentFlowFinished;
     }
 
-    public void bypassConsentFlow(){
+    public void bypassConsentFlow() {
         isConsentFlowFinished = true;
     }
 
@@ -75,19 +75,29 @@ public final class GoogleMobileAdsConsentManager {
      */
     public void gatherConsent(
             Activity activity, OnConsentGatheringCompleteListener onConsentGatheringCompleteListener) {
-        // For testing purposes, you can force a DebugGeography of EEA or NOT_EEA.
-        ConsentDebugSettings debugSettings = new ConsentDebugSettings.Builder(activity)
-                 .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
-                // Check your logcat output for the hashed device ID e.g.
-                // "Use new ConsentDebugSettings.Builder().addTestDeviceHashedId("ABCDEF012345")" to use
-                // the debug functionality.
-                .addTestDeviceHashedId("0B6312C522BE88E9F10AAC1F7CF2FC41")
-                .build();
 
-        ConsentRequestParameters params = new ConsentRequestParameters.Builder()
-                .setTagForUnderAgeOfConsent(false)
-                .setConsentDebugSettings(debugSettings)
-                .build();
+
+        ConsentRequestParameters params = null;
+
+        if (BuildConfig.DEBUG) {
+            // For testing purposes, you can force a DebugGeography of EEA or NOT_EEA.
+            ConsentDebugSettings debugSettings = new ConsentDebugSettings.Builder(activity)
+                    .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
+                    // Check your logcat output for the hashed device ID e.g.
+                    // "Use new ConsentDebugSettings.Builder().addTestDeviceHashedId("ABCDEF012345")" to use
+                    // the debug functionality.
+                    .addTestDeviceHashedId("0B6312C522BE88E9F10AAC1F7CF2FC41")
+                    .build();
+
+            params = new ConsentRequestParameters.Builder()
+                    .setTagForUnderAgeOfConsent(false)
+                    .setConsentDebugSettings(debugSettings)
+                    .build();
+        } else {
+            params = new ConsentRequestParameters.Builder()
+                    .setTagForUnderAgeOfConsent(false)
+                    .build();
+        }
 
         // Requesting an update to consent information should be called on every app launch.
         consentInformation.requestConsentInfoUpdate(

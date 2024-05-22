@@ -55,8 +55,9 @@ public class IronsourceAdsService implements IAdsService {
     private int blockAutoShowInterCount;
     private int _bannerPosition;
     private int _mrecPosition;
-    private boolean _useAdmobBanner;
+    private boolean _useMRECAdmob;
     private boolean _bannerLoaded;
+    private boolean _needShowBanner;
 
     @Override
     public void Init(Activity activity, String[] args) {
@@ -67,7 +68,7 @@ public class IronsourceAdsService implements IAdsService {
 
         //set keys
         _appKey = args[0];
-        _useAdmobBanner = Objects.equals(args[1], "admob");
+        _useMRECAdmob = Objects.equals(args[1], "mrec_admob");
 
         _bannerPosition = Integer.parseInt(args[6]);
         _mrecPosition = Integer.parseInt(args[7]);
@@ -80,6 +81,7 @@ public class IronsourceAdsService implements IAdsService {
         IronSource.setConsent(true);
         IronSource.setMetaData("do_not_sell", "false");
         IronSource.setMetaData("is_child_directed", "false");
+        _needShowBanner = false;
 
         IronSource.init(activity, _appKey, new InitializationListener() {
             @Override
@@ -89,9 +91,8 @@ public class IronsourceAdsService implements IAdsService {
 
                 Log.d(TAG, "onInitializationComplete: ");
                 IronSource.loadInterstitial();
-                if (_useAdmobBanner) {
+                if (_useMRECAdmob)
                     PreloadBanner(activity);
-                }
             }
         }, IronSource.AD_UNIT.INTERSTITIAL, IronSource.AD_UNIT.REWARDED_VIDEO, IronSource.AD_UNIT.BANNER);
 
@@ -344,18 +345,22 @@ public class IronsourceAdsService implements IAdsService {
 
     @Override
     public void ShowBanner(Activity activity) {
-        if (!_useAdmobBanner) {
-            LoadNormalBanner(activity);
-        } else {
+        _needShowBanner = true;
+        if (_useMRECAdmob) {
+            //Show IS Banner
             if (mBannerContainer != null && mBannerContainer.getVisibility() != View.VISIBLE && mIronSourceBannerLayout != null) {
                 mBannerContainer.setVisibility(View.VISIBLE);
             }
+        } else {
+            //Load IS Banner
+            LoadNormalBanner(activity);
         }
     }
 
     @Override
     public void HideBanner() {
-        if (_useAdmobBanner) {
+        _needShowBanner = false;
+        if (_useMRECAdmob) {
             Log.d(TAG, "HIDE Banner");
             if (mBannerContainer != null && mBannerContainer.getVisibility() != View.GONE && mIronSourceBannerLayout != null) {
                 mBannerContainer.setVisibility(View.GONE);
@@ -495,8 +500,9 @@ public class IronsourceAdsService implements IAdsService {
             rootView.addView(mBannerContainer);
         }
 
-        ISBannerSize size = ISBannerSize.SMART;
-        size.setAdaptive(true);
+        ISBannerSize size = ISBannerSize.BANNER;
+//        size.setAdaptive(true);
+
         mIronSourceBannerLayout = IronSource.createBanner(activity, size);
 
         if (mIronSourceBannerLayout != null) {
@@ -506,7 +512,10 @@ public class IronsourceAdsService implements IAdsService {
                     Log.d(TAG, "onBannerAdLoaded");
                     _bannerLoaded = true;
                     // since banner container was "gone" by default, we need to make it visible as soon as the banner is ready
-                    if (!_useAdmobBanner) mBannerContainer.setVisibility(View.VISIBLE);
+                    if (_needShowBanner && mBannerContainer.getVisibility() == View.GONE)
+                        mBannerContainer.setVisibility(View.VISIBLE);
+                    if (!_needShowBanner && mBannerContainer.getVisibility() == View.VISIBLE)
+                        mBannerContainer.setVisibility(View.GONE);
                 }
 
                 @Override
