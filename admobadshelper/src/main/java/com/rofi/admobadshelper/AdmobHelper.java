@@ -271,13 +271,13 @@ public class AdmobHelper {
     }
 
     public void ShowMrec() {
-        if (mrecAdLoaded && mrecAdView.getVisibility() == View.GONE) {
+        if (mrecAdView != null && mrecAdLoaded && mrecAdView.getVisibility() == View.GONE) {
             mrecAdView.setVisibility(View.VISIBLE);
         }
     }
 
     public void HideMrec() {
-        if (mrecAdView.getVisibility() == View.VISIBLE) {
+        if (mrecAdView != null && mrecAdView.getVisibility() == View.VISIBLE) {
             mrecAdView.setVisibility(View.GONE);
         }
     }

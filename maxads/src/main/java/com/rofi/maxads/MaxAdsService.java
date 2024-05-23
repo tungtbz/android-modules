@@ -772,6 +772,16 @@ public class MaxAdsService implements IAdsService {
             Log.d(TAG, "Inter Ads Is Disabled");
             return false;
         }
+        if (isFullscreenAdsShowing) {
+            Log.d(TAG, "isFullscreenAdsShowing");
+            return false;
+        }
+
+        if (isCoolDownShowInter) {
+            Log.d(TAG, "isCoolDownShowInter");
+            return false;
+        }
+
         if (mInterstitialAd == null) {
             return false;
         }
