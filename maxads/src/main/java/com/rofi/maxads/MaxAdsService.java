@@ -1136,7 +1136,11 @@ public class MaxAdsService implements IAdsService {
         Log.d(TAG, "OpenAppAds " + _openAdsId);
         appOpenAd = new MaxAppOpenAd(_openAdsId, activity.getApplicationContext());
 
-        appOpenAd.setRevenueListener(maxAd -> {
+        appOpenAd.setRevenueListener(new MaxAdRevenueListener() {
+            @Override
+            public void onAdRevenuePaid(MaxAd ad) {
+                LogRevenue(ad);
+            }
         });
 
         appOpenAd.setListener(new MaxAdViewAdListener() {
