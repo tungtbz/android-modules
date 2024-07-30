@@ -5,12 +5,21 @@ import static com.rofi.base.Constants.RESUME_INTER_ADS;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Point;
+import android.graphics.Rect;
+import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.view.DisplayCutout;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowInsets;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
 
@@ -19,7 +28,9 @@ import com.amazon.device.ads.DTBAdCallback;
 import com.amazon.device.ads.DTBAdResponse;
 import com.applovin.mediation.MaxAd;
 import com.applovin.mediation.MaxAdFormat;
+import com.applovin.mediation.MaxAdListener;
 import com.applovin.mediation.MaxAdRevenueListener;
+import com.applovin.mediation.MaxAdReviewListener;
 import com.applovin.mediation.MaxAdViewAdListener;
 import com.applovin.mediation.MaxError;
 import com.applovin.mediation.MaxReward;
@@ -40,12 +51,15 @@ import com.rofi.ads.IAdsService;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
 import com.rofi.remoteconfig.FirebaseRemoteConfigService;
+import com.unity3d.player.UnityPlayer;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
-public class MaxAdsService implements IAdsService {
+public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdListener, MaxRewardedAdListener, MaxAdRevenueListener, MaxAdReviewListener {
     private final String TAG = "MaxAdsService";
 
     private MaxInterstitialAd mInterstitialAd;
@@ -115,6 +129,19 @@ public class MaxAdsService implements IAdsService {
 
     private AmazonAdsService _maxAmazonAdsService;
 
+    private AppLovinSdk sdk;
+    private MaxAdView mFreeMrecAdViews;
+
+    protected static class Insets {
+        int left;
+
+        int top;
+
+        int right;
+
+        int bottom;
+    }
+
     @Override
     public void Init(Activity activity, String[] args) {
         if (args == null || args.length == 0) {
@@ -134,6 +161,7 @@ public class MaxAdsService implements IAdsService {
         _mrecPosition = Integer.parseInt(args[7]);
 
         if (args.length >= 9) _openAdsId = args[8];
+
         _apsEnable = false;
         //aps
         if (args.length >= 12) {
@@ -166,9 +194,11 @@ public class MaxAdsService implements IAdsService {
         AppLovinPrivacySettings.setIsAgeRestrictedUser(false, context);
         AppLovinPrivacySettings.setDoNotSell(false, context);
 
-        AppLovinSdk.getInstance(activity.getApplicationContext()).setMediationProvider("max");
-        AppLovinSdk.getInstance(activity.getApplicationContext()).getSettings().setVerboseLogging(BuildConfig.DEBUG);
-        AppLovinSdk.getInstance(activity.getApplicationContext()).getSettings().setCreativeDebuggerEnabled(BuildConfig.DEBUG);
+        this.sdk = AppLovinSdk.getInstance(activity.getApplicationContext());
+        this.sdk.setMediationProvider("max");
+        this.sdk.setPluginVersion("Max-Unity-6.5.2");
+        this.sdk.getSettings().setVerboseLogging(BuildConfig.DEBUG);
+        this.sdk.getSettings().setCreativeDebuggerEnabled(BuildConfig.DEBUG);
 
         AppLovinSdk.initializeSdk(activity.getApplicationContext(), new AppLovinSdk.SdkInitializationListener() {
             @Override
@@ -181,11 +211,237 @@ public class MaxAdsService implements IAdsService {
 //                //cache MREC
                 LoadMREC(_activity, _mrecPosition);
 
+                _adsAdsEventListener.onAdServiceLoaded();
+
                 if (BuildConfig.DEBUG) {
-                    AppLovinSdk.getInstance(activity.getApplicationContext()).showMediationDebugger();
+                    sdk.showMediationDebugger();
                 }
             }
         });
+    }
+
+    static Activity getCurrentActivity() {
+        return UnityPlayer.currentActivity;
+    }
+
+    static void runSafelyOnUiThread(Activity activity, final Runnable runner) {
+        activity.runOnUiThread(new Runnable() {
+            public void run() {
+                try {
+                    runner.run();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    static boolean isMainThread() {
+        return (Looper.myLooper() == Looper.getMainLooper());
+    }
+
+    public void ShowFreeMrec() {
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            public void run() {
+                if (mFreeMrecAdViews == null) {
+                    return;
+                }
+                mFreeMrecAdViews.setVisibility(View.VISIBLE);
+                mFreeMrecAdViews.startAutoRefresh();
+            }
+        });
+    }
+
+    public void HideFreeMrec() {
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            public void run() {
+                if (mFreeMrecAdViews == null) {
+                    return;
+                }
+                mFreeMrecAdViews.setVisibility(View.GONE);
+                mFreeMrecAdViews.stopAutoRefresh();
+            }
+        });
+    }
+
+    private boolean _isFreeMrecLoading;
+
+    public void CreateFreeMrec(String adsId) {
+        if (this._isFreeMrecLoading) return;
+
+        mFreeMrecAdViews = new MaxAdView(adsId, MaxAdFormat.MREC, getCurrentActivity().getApplicationContext());
+        mFreeMrecAdViews.setRevenueListener(new MaxAdRevenueListener() {
+            @Override
+            public void onAdRevenuePaid(MaxAd ad) {
+                LogRevenue(ad);
+            }
+        });
+
+        mFreeMrecAdViews.setListener(new MaxAdViewAdListener() {
+            @Override
+            public void onAdExpanded(MaxAd ad) {
+
+            }
+
+            @Override
+            public void onAdCollapsed(MaxAd ad) {
+
+            }
+
+            @Override
+            public void onAdLoaded(MaxAd ad) {
+                Log.d(TAG, "Free MREC onAdLoaded: " + ad.getAdUnitId());
+                _isFreeMrecLoading = false;
+            }
+
+            @Override
+            public void onAdDisplayed(MaxAd ad) {
+
+            }
+
+            @Override
+            public void onAdHidden(MaxAd ad) {
+
+            }
+
+            @Override
+            public void onAdClicked(MaxAd ad) {
+                Log.d(TAG, "Free MREC onMRECAdClicked: ");
+//                AnalyticManager.getInstance().ShowAds(2);
+                isClickToAds = true;
+            }
+
+            @Override
+            public void onAdLoadFailed(String adUnitId, MaxError error) {
+//                mRectBannerLoaded = false;
+                Log.d(TAG, "Free MREC: onAdLoadFailed: ");
+                _isFreeMrecLoading = false;
+            }
+
+            @Override
+            public void onAdDisplayFailed(MaxAd ad, MaxError error) {
+
+            }
+        });
+        mFreeMrecAdViews.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
+
+        //add ads view to layout
+        mFreeMrecAdViews.setVisibility(View.GONE);
+        if (mFreeMrecAdViews.getParent() == null) {
+            Activity currentActivity = MaxAdsService.getCurrentActivity();
+            RelativeLayout relativeLayout = new RelativeLayout((Context) currentActivity);
+            currentActivity.addContentView((View) relativeLayout, (ViewGroup.LayoutParams) new LinearLayout.LayoutParams(-1, -1));
+            relativeLayout.addView((View) mFreeMrecAdViews);
+
+            this.updatePositionMrecAdview("centered", 0);
+        }
+
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                mFreeMrecAdViews.loadAd();
+                _isFreeMrecLoading = true;
+            }
+        });
+    }
+
+    public void updatePositionMrecAdview(String adViewPosition, int adViewOffsetY) {
+        getCurrentActivity().runOnUiThread(new Runnable() {
+            public void run() {
+                int adViewWidthDp = 0, adViewHeightDp = 0;
+
+                MaxAdView adView = mFreeMrecAdViews;
+                MaxAdFormat adFormat = MaxAdFormat.MREC;
+
+                if (adView == null) {
+                    MaxAdsService.e(adFormat.getLabel() + " does not exist");
+                    return;
+                }
+
+                RelativeLayout relativeLayout = (RelativeLayout) adView.getParent();
+                if (relativeLayout == null) {
+                    MaxAdsService.e(adFormat.getLabel() + "'s parent does not exist");
+                    return;
+                }
+
+                Rect windowRect = new Rect();
+                relativeLayout.getWindowVisibleDisplayFrame(windowRect);
+
+                //calculate w and h
+                if ("top_center".equalsIgnoreCase(adViewPosition) || "bottom_center".equalsIgnoreCase(adViewPosition)) {
+                    int adViewWidthPx = windowRect.width();
+                    adViewWidthDp = AppLovinSdkUtils.pxToDp((Context) getCurrentActivity(), adViewWidthPx);
+                } else {
+                    adViewWidthDp = MaxAdFormat.MREC.getSize().getWidth();
+                }
+                adViewHeightDp = MaxAdFormat.MREC.getSize().getHeight();
+                int widthPx = AppLovinSdkUtils.dpToPx((Context) getCurrentActivity(), adViewWidthDp);
+                int heightPx = AppLovinSdkUtils.dpToPx((Context) getCurrentActivity(), adViewHeightDp);
+                //=========
+
+                int gravity = 0;
+                adView.setRotation(0.0F);
+                adView.setTranslationX(0.0F);
+
+                if ("centered".equalsIgnoreCase(adViewPosition)) {
+                    gravity = Gravity.CENTER;
+                } else {
+                    if (adViewPosition.contains("top")) {
+                        gravity = Gravity.TOP;
+                    } else if (adViewPosition.contains("bottom")) {
+                        gravity = Gravity.BOTTOM;
+                    }
+
+                    if (adViewPosition.contains("center")) {
+                        gravity |= Gravity.CENTER_HORIZONTAL;
+                    }
+                }
+
+                MaxAdsService.Insets insets = MaxAdsService.getSafeInsets();
+                int marginLeft = insets.left;
+                int marginRight = insets.right;
+                int marginTop = insets.top + adViewOffsetY;
+                int marginBottom = insets.bottom;
+                RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mFreeMrecAdViews.getLayoutParams();
+                params.height = heightPx;
+                params.width = widthPx;
+                params.setMargins(marginLeft, marginTop, marginRight, marginBottom);
+                adView.setLayoutParams((ViewGroup.LayoutParams) params);
+
+
+                relativeLayout.setGravity(gravity);
+            }
+        });
+    }
+
+    private static void d(String message) {
+        String fullMessage = "[MaxUnityAdManager] " + message;
+        Log.d("AppLovinSdk", fullMessage);
+    }
+
+    private static void e(String message) {
+        String fullMessage = "[MaxUnityAdManager] " + message;
+        Log.e("AppLovinSdk", fullMessage);
+    }
+
+    protected static Insets getSafeInsets() {
+        Insets insets = new Insets();
+        if (Build.VERSION.SDK_INT < 28)
+            return insets;
+        Window window = getCurrentActivity().getWindow();
+        if (window == null)
+            return insets;
+        WindowInsets windowInsets = window.getDecorView().getRootWindowInsets();
+        if (windowInsets == null)
+            return insets;
+        DisplayCutout displayCutout = windowInsets.getDisplayCutout();
+        if (displayCutout == null)
+            return insets;
+        insets.left = displayCutout.getSafeInsetLeft();
+        insets.top = displayCutout.getSafeInsetTop();
+        insets.right = displayCutout.getSafeInsetRight();
+        insets.bottom = displayCutout.getSafeInsetBottom();
+        return insets;
     }
 
     @Override
@@ -218,7 +474,7 @@ public class MaxAdsService implements IAdsService {
     void InitVideoRewardAds(Activity activity) {
 //        String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
         String videoRewardKey = _rewardAdId;
-        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, activity);
+        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, getCurrentActivity().getApplicationContext());
 
         mRewardedAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
@@ -1240,5 +1496,61 @@ public class MaxAdsService implements IAdsService {
     @Override
     public void EnableInterAds() {
         _isDisableInterAds = false;
+    }
+
+    //ads callbacks
+    @Override
+    public void onAdExpanded(@NonNull MaxAd maxAd) {
+
+    }
+
+    @Override
+    public void onAdCollapsed(@NonNull MaxAd maxAd) {
+
+    }
+
+    @Override
+    public void onUserRewarded(@NonNull MaxAd maxAd, @NonNull MaxReward maxReward) {
+
+    }
+
+    @Override
+    public void onAdLoaded(@NonNull MaxAd maxAd) {
+
+    }
+
+    @Override
+    public void onAdDisplayed(@NonNull MaxAd maxAd) {
+
+    }
+
+    @Override
+    public void onAdHidden(@NonNull MaxAd maxAd) {
+
+    }
+
+    @Override
+    public void onAdClicked(@NonNull MaxAd maxAd) {
+
+    }
+
+    @Override
+    public void onAdLoadFailed(@NonNull String s, @NonNull MaxError maxError) {
+
+    }
+
+    @Override
+    public void onAdDisplayFailed(@NonNull MaxAd maxAd, @NonNull MaxError maxError) {
+
+    }
+
+    @Override
+    public void onAdRevenuePaid(@NonNull MaxAd maxAd) {
+
+    }
+
+    @Override
+    public void onCreativeIdGenerated(@NonNull String s, @NonNull MaxAd maxAd) {
+
     }
 }

@@ -1,6 +1,8 @@
 package com.rofi.ads;
 
 public interface AdsEventListener {
+    void onAdServiceLoaded();
+
     void onVideoRewardLoaded();
 
     void onVideoRewardDisplayed();

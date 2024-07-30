@@ -21,7 +21,6 @@ import com.ironsource.mediationsdk.sdk.LevelPlayBannerListener;
 import com.ironsource.mediationsdk.sdk.LevelPlayInterstitialListener;
 import com.ironsource.mediationsdk.sdk.LevelPlayRewardedVideoListener;
 import com.rofi.ads.AdsEventListener;
-import com.rofi.ads.AdsManager;
 import com.rofi.ads.IAdsService;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
@@ -43,7 +42,7 @@ public class IronsourceAdsService implements IAdsService {
     private int mCurrentInterRequestCode;
     private boolean isCoolDownShowInter;
     private boolean isAdClicked;
-    private boolean mIsShowingAppOpenAd;
+    private boolean mIsShowingResumeAds;
 
     private FrameLayout mBannerContainer;
     private IronSourceBannerLayout mIronSourceBannerLayout;
@@ -209,9 +208,9 @@ public class IronsourceAdsService implements IAdsService {
                 IronSource.loadInterstitial();
                 isFullscreenAdsShowing = false;
 
-                if (mIsShowingAppOpenAd) {
+                if (mIsShowingResumeAds) {
                     Log.d(TAG, "Inter: onAdHidden after show open app");
-                    mIsShowingAppOpenAd = false;
+                    mIsShowingResumeAds = false;
                     return;
                 }
 
@@ -277,7 +276,7 @@ public class IronsourceAdsService implements IAdsService {
                 Log.d(TAG, "ShowInter when resume");
                 IronSource.showInterstitial();
             } else {
-                mIsShowingAppOpenAd = false;
+                mIsShowingResumeAds = false;
             }
             return;
         }
@@ -644,7 +643,12 @@ public class IronsourceAdsService implements IAdsService {
             return;
         }
 
-        mIsShowingAppOpenAd = true;
+        if (mIsShowingResumeAds) {
+            Log.e(TAG, "mIsShowingResumeAds");
+            return;
+        }
+
+        mIsShowingResumeAds = true;
 
         ShowInter(1);
     }

@@ -5,7 +5,7 @@ plugins {
 
 // Place the version of your library here
 def getVersionName = { ->
-    return "0.0.3"
+    return "0.0.4"
 }
 // Add the name of your library here
 def getReleaseArtifactId = { ->

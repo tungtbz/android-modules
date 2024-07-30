@@ -2,15 +2,21 @@ package com.rofi.admobadshelper;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Insets;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Display;
+import android.view.DisplayCutout;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowInsets;
 import android.widget.FrameLayout;
 
 import androidx.annotation.Dimension;
@@ -114,6 +120,11 @@ public class AdmobHelper {
 
         cBannerView.setAdListener(new AdListener() {
             @Override
+            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+
+            }
+
+            @Override
             public void onAdLoaded() {
                 super.onAdLoaded();
                 bannerAdLoading = false;
@@ -147,6 +158,16 @@ public class AdmobHelper {
     }
 
     Handler handler = new Handler();
+
+    protected static class Insets {
+        int left;
+
+        int top;
+
+        int right;
+
+        int bottom;
+    }
 
     static void runSafelyOnUiThread(Activity activity, final Runnable runner) {
         activity.runOnUiThread(new Runnable() {
@@ -247,39 +268,161 @@ public class AdmobHelper {
         return AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity.getApplicationContext(), adWidth);
     }
 
+    private int mPositionCode;
+    private int mHorizontalOffset;
+    private int mVerticalOffset;
+
+    private void updateMrecPosition() {
+        if (this.mrecAdView == null)
+            return;
+        AdmobHelper.getCurrentActivity().runOnUiThread(new Runnable() {
+            public void run() {
+                FrameLayout.LayoutParams layoutParams = AdmobHelper.this.getLayoutParams();
+                AdmobHelper.this.mrecAdView.setLayoutParams((ViewGroup.LayoutParams) layoutParams);
+            }
+        });
+    }
+
+    protected FrameLayout.LayoutParams getLayoutParams() {
+        FrameLayout.LayoutParams adParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        adParams.gravity = AdmobHelper.getLayoutGravityForPositionCode(this.mPositionCode);
+        Insets insets = getSafeInsets();
+        int safeInsetLeft = insets.left;
+        int safeInsetTop = insets.top;
+
+        adParams.bottomMargin = insets.bottom;
+        adParams.rightMargin = insets.right;
+
+        if (this.mPositionCode == -1) {
+            int leftOffset = (int) AdmobHelper.convertDpToPixel(this.mHorizontalOffset);
+            if (leftOffset < safeInsetLeft)
+                leftOffset = safeInsetLeft;
+            int topOffset = (int) AdmobHelper.convertDpToPixel(this.mVerticalOffset);
+            if (topOffset < safeInsetTop)
+                topOffset = safeInsetTop;
+            adParams.leftMargin = leftOffset;
+            adParams.topMargin = topOffset;
+        } else {
+            adParams.leftMargin = safeInsetLeft;
+            if (this.mPositionCode == 0
+                    || this.mPositionCode == 2
+                    || this.mPositionCode == 3
+                    || this.mPositionCode == 6
+            )
+                adParams.topMargin = safeInsetTop;
+        }
+        return adParams;
+    }
+
+    public static float convertPixelsToDp(float px) {
+        DisplayMetrics metrics = Resources.getSystem().getDisplayMetrics();
+        return px / metrics.density;
+    }
+
+    public static float convertDpToPixel(float dp) {
+        DisplayMetrics metrics = Resources.getSystem().getDisplayMetrics();
+        return dp * metrics.density;
+    }
+
+    private Insets getSafeInsets() {
+        Insets insets = new Insets();
+        if (Build.VERSION.SDK_INT < 28)
+            return insets;
+        Window window = AdmobHelper.getCurrentActivity().getWindow();
+        if (window == null)
+            return insets;
+        WindowInsets windowInsets = window.getDecorView().getRootWindowInsets();
+        if (windowInsets == null)
+            return insets;
+        DisplayCutout displayCutout = windowInsets.getDisplayCutout();
+        if (displayCutout == null)
+            return insets;
+        insets.top = displayCutout.getSafeInsetTop();
+        insets.left = displayCutout.getSafeInsetLeft();
+        insets.bottom = displayCutout.getSafeInsetBottom();
+        insets.right = displayCutout.getSafeInsetRight();
+        return insets;
+    }
+
+    public static int getLayoutGravityForPositionCode(int positionCode) {
+        int gravity;
+        switch (positionCode) {
+            case 0:
+                gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                return gravity;
+            case 1:
+                gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+                return gravity;
+            case 2:
+                gravity = 51;//top left
+                return gravity;
+            case 3:
+                gravity = 53;//top right
+                return gravity;
+            case 4:
+                gravity = 83;//bot left
+                return gravity;
+            case 5:
+                gravity = 85;//bot right
+                return gravity;
+            case 6:
+                gravity = Gravity.CENTER;
+                return gravity;
+            case -1:
+
+        }
+        throw new IllegalArgumentException("Attempted to position ad with invalid ad position.");
+    }
+
     public void SetAdsCallback(IAdmobAdListener callback) {
         adsEventCallback = callback;
     }
 
     public void initMrec(Activity activity, String adUnitId, String position) {
         _mrecAdsId = adUnitId;
-        CreateMrecAdView(activity, _mrecAdsId, Integer.parseInt(position));
+        this.mPositionCode = Integer.parseInt(position);
+        CreateMrecAdView(activity, _mrecAdsId);
+    }
+
+    public void setMrecPosition(int positionCode, int offsetY) {
+        this.mPositionCode = positionCode;
+        this.mVerticalOffset = offsetY;
+        this.updateMrecPosition();
     }
 
     public void loadMrec() {
-        if (mrecAdView != null) {
-            if (mrecAdLoading) return;
-            if (mrecAdLoaded) return;
+        AdmobHelper.getCurrentActivity().runOnUiThread(() -> {
+            if (mrecAdView != null) {
+                if (mrecAdLoading) return;
+                if (mrecAdLoaded) return;
 
-            mrecAdLoading = true;
+                mrecAdLoading = true;
 
-            AdRequest adRequest = new AdRequest.Builder().build();
-            mrecAdView.loadAd(adRequest);
-        } else {
-            Log.d(TAG, "loadMrec: NULLLLLLL");
-        }
+                AdRequest adRequest = new AdRequest.Builder().build();
+                mrecAdView.loadAd(adRequest);
+            } else {
+                Log.d(TAG, "loadMrec: NULLLLLLL");
+            }
+        });
     }
 
     public void ShowMrec() {
-        if (mrecAdView != null && mrecAdLoaded && mrecAdView.getVisibility() == View.GONE) {
-            mrecAdView.setVisibility(View.VISIBLE);
-        }
+        AdmobHelper.getCurrentActivity().runOnUiThread(() -> {
+            if (mrecAdView != null && mrecAdLoaded && mrecAdView.getVisibility() == View.GONE) {
+                mrecAdView.setVisibility(View.VISIBLE);
+                mrecAdView.resume();
+            }
+        });
+
     }
 
     public void HideMrec() {
-        if (mrecAdView != null && mrecAdView.getVisibility() == View.VISIBLE) {
-            mrecAdView.setVisibility(View.GONE);
-        }
+        AdmobHelper.getCurrentActivity().runOnUiThread(() -> {
+            if (mrecAdView != null && mrecAdView.getVisibility() == View.VISIBLE) {
+                mrecAdView.setVisibility(View.GONE);
+                mrecAdView.pause();
+            }
+        });
     }
 
     public void bypassConsentFlow(Activity activity) {
@@ -324,11 +467,13 @@ public class AdmobHelper {
         return consentInformation.getPrivacyOptionsRequirementStatus() == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED;
     }
 
-    private void CreateMrecAdView(Activity activity, String adUnitId, int position) {
+    private void CreateMrecAdView(Activity activity, String adUnitId) {
         mrecAdView = new AdView(activity);
         mrecAdView.setAdSize(AdSize.MEDIUM_RECTANGLE);
         mrecAdView.setAdUnitId(adUnitId);
         mrecAdView.setVisibility(View.GONE);
+        mrecAdView.setDescendantFocusability(393216);
+        AdmobHelper.getCurrentActivity().addContentView(mrecAdView, (ViewGroup.LayoutParams) getLayoutParams());
 
         mrecAdView.setOnPaidEventListener(adValue -> {
             // Get the ad unit ID.
@@ -367,13 +512,13 @@ public class AdmobHelper {
             }
         });
 
-        int gravity = position == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
-        layoutParams.setMargins(0, 0, 0, 0);
-        mrecAdView.setLayoutParams(layoutParams);
-
-        ViewGroup rootView = activity.findViewById(android.R.id.content);
-        rootView.addView(mrecAdView);
+//        int gravity = position == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+//        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
+//        layoutParams.setMargins(0, 0, 0, 0);
+//        mrecAdView.setLayoutParams(layoutParams);
+//
+//        ViewGroup rootView = activity.findViewById(android.R.id.content);
+//        rootView.addView(mrecAdView);
 
     }
 
@@ -391,7 +536,7 @@ public class AdmobHelper {
 
         adsEventCallback.onAdImpression(adFormat, adUnitId, adSourceName, value);
     }
-    
+
     /**
      * Request an ad.
      */
@@ -474,7 +619,8 @@ public class AdmobHelper {
             @Override
             public void onAdClicked() {
                 super.onAdClicked();
-                if (adsEventCallback != null) adsEventCallback.onAdClicked();
+                if (adsEventCallback != null)
+                    adsEventCallback.onAdClicked();
             }
 
             @Override
@@ -505,7 +651,10 @@ public class AdmobHelper {
             public void onAdShowedFullScreenContent() {
                 // Called when fullscreen content is shown.
                 Log.d(TAG, "Ad showed fullscreen content.");
+                if (adsEventCallback != null)
+                    adsEventCallback.onAdDisplayFullScreenContent(0);
             }
+
         });
 
         _isShowingAd = true;

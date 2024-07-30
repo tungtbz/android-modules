@@ -14,6 +14,7 @@ import com.rofi.base.Constants;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class FirebaseRemoteConfigService {
@@ -30,6 +31,11 @@ public class FirebaseRemoteConfigService {
     }
 
     FirebaseRemoteConfig mFirebaseRemoteConfig;
+    private final AtomicBoolean isConfigFetched = new AtomicBoolean(false);
+
+    public boolean IsConfigFetched() {
+        return isConfigFetched.get();
+    }
 
     public void Init(Activity activity) {
         mFirebaseRemoteConfig = FirebaseRemoteConfig.getInstance();
@@ -51,7 +57,8 @@ public class FirebaseRemoteConfigService {
                                         if (task.isSuccessful()) {
                                             Log.d(TAG, "fetchAndActivate Complete");
                                             CacheConfigs();
-                                        }else{
+                                            isConfigFetched.set(true);
+                                        } else {
                                             Log.d(TAG, "fetchAndActivate Failed");
                                         }
                                     }
@@ -88,7 +95,7 @@ public class FirebaseRemoteConfigService {
         return mFirebaseRemoteConfig.getString(key);
     }
 
-    public interface ConfigChangedEvent{
+    public interface ConfigChangedEvent {
         void onRefresh();
     }
 }
