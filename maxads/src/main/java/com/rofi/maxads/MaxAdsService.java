@@ -323,7 +323,9 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
             }
         });
+
         mFreeMrecAdViews.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
+        mFreeMrecAdViews.stopAutoRefresh();
 
         //add ads view to layout
         mFreeMrecAdViews.setVisibility(View.GONE);

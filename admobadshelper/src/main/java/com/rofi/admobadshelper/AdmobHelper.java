@@ -268,24 +268,24 @@ public class AdmobHelper {
         return AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity.getApplicationContext(), adWidth);
     }
 
-    private int mPositionCode;
-    private int mHorizontalOffset;
-    private int mVerticalOffset;
+//    private int mPositionCode;
+//    private int mHorizontalOffset;
+//    private int mVerticalOffset;
 
-    private void updateMrecPosition() {
+    private void updateMrecPosition(int positionCode, int topPadding) {
         if (this.mrecAdView == null)
             return;
         AdmobHelper.getCurrentActivity().runOnUiThread(new Runnable() {
             public void run() {
-                FrameLayout.LayoutParams layoutParams = AdmobHelper.this.getLayoutParams();
+                FrameLayout.LayoutParams layoutParams = AdmobHelper.this.getLayoutParams(positionCode, topPadding);
                 AdmobHelper.this.mrecAdView.setLayoutParams((ViewGroup.LayoutParams) layoutParams);
             }
         });
     }
 
-    protected FrameLayout.LayoutParams getLayoutParams() {
+    protected FrameLayout.LayoutParams getLayoutParams(int positionCode, int topPadding) {
         FrameLayout.LayoutParams adParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        adParams.gravity = AdmobHelper.getLayoutGravityForPositionCode(this.mPositionCode);
+        adParams.gravity = AdmobHelper.getLayoutGravityForPositionCode(positionCode);
         Insets insets = getSafeInsets();
         int safeInsetLeft = insets.left;
         int safeInsetTop = insets.top;
@@ -293,23 +293,29 @@ public class AdmobHelper {
         adParams.bottomMargin = insets.bottom;
         adParams.rightMargin = insets.right;
 
-        if (this.mPositionCode == -1) {
-            int leftOffset = (int) AdmobHelper.convertDpToPixel(this.mHorizontalOffset);
+        if (positionCode == -1) {
+//            int leftOffset = (int) AdmobHelper.convertDpToPixel(this.mHorizontalOffset);
+            int leftOffset = 0;
             if (leftOffset < safeInsetLeft)
                 leftOffset = safeInsetLeft;
-            int topOffset = (int) AdmobHelper.convertDpToPixel(this.mVerticalOffset);
+            int topOffset = (int) AdmobHelper.convertDpToPixel(topPadding);
             if (topOffset < safeInsetTop)
                 topOffset = safeInsetTop;
             adParams.leftMargin = leftOffset;
             adParams.topMargin = topOffset;
+
         } else {
             adParams.leftMargin = safeInsetLeft;
-            if (this.mPositionCode == 0
-                    || this.mPositionCode == 2
-                    || this.mPositionCode == 3
-                    || this.mPositionCode == 6
-            )
-                adParams.topMargin = safeInsetTop;
+
+            if (positionCode == 0
+                    || positionCode == 2
+                    || positionCode == 3
+                    || positionCode == 6
+            ) {
+                int topOffsetPixel = (int) AdmobHelper.convertDpToPixel(topPadding);
+                adParams.topMargin = safeInsetTop + topOffsetPixel;
+            }
+
         }
         return adParams;
     }
@@ -344,7 +350,7 @@ public class AdmobHelper {
         return insets;
     }
 
-    public static int getLayoutGravityForPositionCode(int positionCode) {
+    private static int getLayoutGravityForPositionCode(int positionCode) {
         int gravity;
         switch (positionCode) {
             case 0:
@@ -380,14 +386,12 @@ public class AdmobHelper {
 
     public void initMrec(Activity activity, String adUnitId, String position) {
         _mrecAdsId = adUnitId;
-        this.mPositionCode = Integer.parseInt(position);
-        CreateMrecAdView(activity, _mrecAdsId);
+        int positionCode = Integer.parseInt(position);
+        CreateMrecAdView(activity, _mrecAdsId, positionCode);
     }
 
     public void setMrecPosition(int positionCode, int offsetY) {
-        this.mPositionCode = positionCode;
-        this.mVerticalOffset = offsetY;
-        this.updateMrecPosition();
+        this.updateMrecPosition(positionCode, offsetY);
     }
 
     public void loadMrec() {
@@ -467,13 +471,13 @@ public class AdmobHelper {
         return consentInformation.getPrivacyOptionsRequirementStatus() == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED;
     }
 
-    private void CreateMrecAdView(Activity activity, String adUnitId) {
+    private void CreateMrecAdView(Activity activity, String adUnitId, int positionCode) {
         mrecAdView = new AdView(activity);
         mrecAdView.setAdSize(AdSize.MEDIUM_RECTANGLE);
         mrecAdView.setAdUnitId(adUnitId);
         mrecAdView.setVisibility(View.GONE);
         mrecAdView.setDescendantFocusability(393216);
-        AdmobHelper.getCurrentActivity().addContentView(mrecAdView, (ViewGroup.LayoutParams) getLayoutParams());
+        AdmobHelper.getCurrentActivity().addContentView(mrecAdView, (ViewGroup.LayoutParams) getLayoutParams(positionCode, 0));
 
         mrecAdView.setOnPaidEventListener(adValue -> {
             // Get the ad unit ID.

@@ -7,7 +7,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import com.ironsource.adqualitysdk.sdk.ISAdQualityConfig;
+import com.ironsource.adqualitysdk.sdk.ISAdQualityInitError;
+import com.ironsource.adqualitysdk.sdk.ISAdQualityInitListener;
+import com.ironsource.adqualitysdk.sdk.ISAdQualityLogLevel;
+import com.ironsource.adqualitysdk.sdk.IronSourceAdQuality;
 import com.ironsource.mediationsdk.ISBannerSize;
+import com.ironsource.mediationsdk.ISContainerParams;
 import com.ironsource.mediationsdk.IronSource;
 import com.ironsource.mediationsdk.IronSourceBannerLayout;
 import com.ironsource.mediationsdk.adunit.adapter.utility.AdInfo;
@@ -82,18 +88,36 @@ public class IronsourceAdsService implements IAdsService {
         IronSource.setMetaData("is_child_directed", "false");
         _needShowBanner = false;
 
-        IronSource.init(activity, _appKey, new InitializationListener() {
+        ISAdQualityConfig.Builder adQualityConfigBuilder = new ISAdQualityConfig.Builder().setAdQualityInitListener(new ISAdQualityInitListener() {
             @Override
-            public void onInitializationComplete() {
-                if (BuildConfig.DEBUG) IronSource.launchTestSuite(activity);
-                if (BuildConfig.DEBUG) IntegrationHelper.validateIntegration(activity);
+            public void adQualitySdkInitSuccess() {
+                Log.d(TAG, "adQualitySdkInitSuccess");
 
-                Log.d(TAG, "onInitializationComplete: ");
-                IronSource.loadInterstitial();
-                if (_useMRECAdmob)
-                    PreloadBanner(activity);
+                IronSource.init(activity, _appKey, new InitializationListener() {
+                    @Override
+                    public void onInitializationComplete() {
+                        if (BuildConfig.DEBUG) IronSource.launchTestSuite(activity);
+                        if (BuildConfig.DEBUG) IntegrationHelper.validateIntegration(activity);
+
+                        Log.d(TAG, "onInitializationComplete: ");
+                        IronSource.loadInterstitial();
+                        if (_useMRECAdmob) PreloadBanner(activity);
+                    }
+                }, IronSource.AD_UNIT.INTERSTITIAL, IronSource.AD_UNIT.REWARDED_VIDEO, IronSource.AD_UNIT.BANNER);
             }
-        }, IronSource.AD_UNIT.INTERSTITIAL, IronSource.AD_UNIT.REWARDED_VIDEO, IronSource.AD_UNIT.BANNER);
+
+            @Override
+            public void adQualitySdkInitFailed(ISAdQualityInitError error, String message) {
+                Log.d(TAG, "adQualitySdkInitFailed " + error + " message: " + message);
+            }
+        });
+        adQualityConfigBuilder.setTestMode(BuildConfig.DEBUG);
+
+        if (BuildConfig.DEBUG) adQualityConfigBuilder.setLogLevel(ISAdQualityLogLevel.VERBOSE);
+        ISAdQualityConfig adQualityConfig = adQualityConfigBuilder.build();
+
+        // Initialize ad quality
+        IronSourceAdQuality.getInstance().initialize(activity.getApplicationContext(), _appKey, adQualityConfig);
 
         IronSource.shouldTrackNetworkState(activity.getApplicationContext(), true);
     }
@@ -483,13 +507,17 @@ public class IronsourceAdsService implements IAdsService {
 
     private void LoadNormalBanner(Activity activity) {
 
+        ISBannerSize size = ISBannerSize.BANNER;
+        size.setAdaptive(true);
+
         if (mBannerContainer == null) {
             //create banner's container
             // Stretch to the width of the screen for banners to be fully functional
             int width = ViewGroup.LayoutParams.MATCH_PARENT;
             // wrap banner height
             // int height = ViewGroup.LayoutParams.WRAP_CONTENT;
-            int height = activity.getResources().getDimensionPixelSize(R.dimen.banner_height);
+            int height = ISBannerSize.getMaximalAdaptiveHeight(width);
+
             int gravity = _bannerPosition == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
             mBannerContainer = new FrameLayout(activity.getApplicationContext());
             mBannerContainer.setLayoutParams(new FrameLayout.LayoutParams(width, height, gravity));
@@ -497,10 +525,10 @@ public class IronsourceAdsService implements IAdsService {
 
             ViewGroup rootView = activity.findViewById(android.R.id.content);
             rootView.addView(mBannerContainer);
+
+            size.setContainerParams(new ISContainerParams());
         }
 
-        ISBannerSize size = ISBannerSize.BANNER;
-//        size.setAdaptive(true);
 
         mIronSourceBannerLayout = IronSource.createBanner(activity, size);
 

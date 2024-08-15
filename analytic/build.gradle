@@ -81,8 +81,8 @@ dependencies {
     implementation 'com.google.firebase:firebase-analytics'
 
     implementation project(':base')
-    implementation 'com.appsflyer:adrevenue:6.9.0'
-    implementation 'com.appsflyer:af-android-sdk:6.9.0'
+    implementation 'com.appsflyer:adrevenue:6.9.1'
+    implementation 'com.appsflyer:af-android-sdk:6.12.2'
 
     //gson
     implementation 'com.google.code.gson:gson:2.10'
