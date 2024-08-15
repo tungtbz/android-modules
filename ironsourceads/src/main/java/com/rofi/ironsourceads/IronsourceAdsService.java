@@ -1,10 +1,17 @@
 package com.rofi.ironsourceads;
 
 import android.app.Activity;
+import android.content.Context;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import com.ironsource.adqualitysdk.sdk.ISAdQualityConfig;
@@ -31,6 +38,7 @@ import com.rofi.ads.IAdsService;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
 import com.rofi.remoteconfig.FirebaseRemoteConfigService;
+import com.unity3d.player.UnityPlayer;
 
 
 import java.util.Objects;
@@ -39,8 +47,8 @@ import java.util.TimerTask;
 
 public class IronsourceAdsService implements IAdsService {
     private final String TAG = "IronsourceAdsService";
-
     AdsEventListener _adsEventListener;
+    private Handler mUIHandler;
 
     private int mCurrentVideoRewardRequestCode;
     private boolean _isShowingRewardAds;
@@ -52,6 +60,8 @@ public class IronsourceAdsService implements IAdsService {
 
     private FrameLayout mBannerContainer;
     private IronSourceBannerLayout mIronSourceBannerLayout;
+    private IronSourceBannerLayout mBanner;
+    private int mBannerVisibilityState;
 
     private FrameLayout mRECParentContainer;
     private IronSourceBannerLayout mIronSourceRECBannerLayout;
@@ -63,6 +73,10 @@ public class IronsourceAdsService implements IAdsService {
     private boolean _useMRECAdmob;
     private boolean _bannerLoaded;
     private boolean _needShowBanner;
+
+    private IronsourceAdsService() {
+        this.mUIHandler = new Handler(Looper.getMainLooper());
+    }
 
     @Override
     public void Init(Activity activity, String[] args) {
@@ -505,6 +519,127 @@ public class IronsourceAdsService implements IAdsService {
         _isDisableResumeAds = false;
     }
 
+    private void LoadNormalBannerNew(Activity activity,
+                                     int position, final String description,
+                                     final int width, final int height, final boolean isAdaptive,
+                                     final float containerWidth, final float containerHeight,
+                                     final boolean isRespectCutoutsEnabled) {
+        this.mUIHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                synchronized (this) {
+                    try {
+                        //create banner container
+                        if (IronsourceAdsService.this.mBannerContainer == null) {
+                            IronsourceAdsService.this.mBannerContainer = new FrameLayout((Context) UnityPlayer.currentActivity);
+                            IronsourceAdsService.this.mBannerContainer.setBackgroundColor(0);
+                            IronsourceAdsService.this.mBannerContainer.setVisibility(IronsourceAdsService.this.mBannerVisibilityState);
+
+                            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-1, -2);
+                            params.gravity = (position == 1) ? 48 : 80;
+                            UnityPlayer.currentActivity.addContentView((View) IronsourceAdsService.this.mBannerContainer, (ViewGroup.LayoutParams) params);
+                        }
+                        ISBannerSize size = IronsourceAdsService.this.getBannerSize(description, width, height);
+                        if (isAdaptive) {
+                            size.setAdaptive(isAdaptive);
+                            float widthx = containerWidth;
+                            float heightx = containerHeight;
+                            if (widthx <= 0.0F)
+                                widthx = IronsourceAdsService.this.getDeviceScreenWidth();
+                            if (heightx <= 0.0F)
+                                heightx = IronsourceAdsService.this.getMaximalAdaptiveHeight(widthx);
+
+                            ISContainerParams isContainerParams = new ISContainerParams((int) widthx, (int) heightx);
+                            size.setContainerParams(isContainerParams);
+                        }
+                        if (isRespectCutoutsEnabled &&
+                                Build.VERSION.SDK_INT >= 28) {
+                            IronsourceAdsService.this.mBannerContainer.setFitsSystemWindows(true);
+                            IronsourceAdsService.this.mBannerContainer.setSystemUiVisibility(1280);
+                        }
+                        IronsourceAdsService.this.mBanner = IronSource.createBanner(IronsourceAdsService.this.getUnityActivity(), size);
+                        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(-1, -2);
+                        layoutParams.gravity = (position == 1) ? 48 : 80;
+                        IronsourceAdsService.this.mBannerContainer.addView((View)IronsourceAdsService.this.mBanner, (ViewGroup.LayoutParams)layoutParams);
+
+                        IronsourceAdsService.this.mBanner.setLevelPlayBannerListener(new LevelPlayBannerListener() {
+                            @Override
+                            public void onAdLoaded(AdInfo adInfo) {
+
+                            }
+
+                            @Override
+                            public void onAdLoadFailed(IronSourceError ironSourceError) {
+
+                            }
+
+                            @Override
+                            public void onAdClicked(AdInfo adInfo) {
+
+                            }
+
+                            @Override
+                            public void onAdLeftApplication(AdInfo adInfo) {
+
+                            }
+
+                            @Override
+                            public void onAdScreenPresented(AdInfo adInfo) {
+
+                            }
+
+                            @Override
+                            public void onAdScreenDismissed(AdInfo adInfo) {
+
+                            }
+                        });
+                    } catch (Exception e) {
+
+                    }
+                }
+            }
+        });
+    }
+
+    private ISBannerSize getBannerSize(String description, int width, int height) {
+        if (description.equals("CUSTOM"))
+            return new ISBannerSize(width, height);
+        if (description.equals("SMART"))
+            return ISBannerSize.SMART;
+        if (description.equals("RECTANGLE"))
+            return ISBannerSize.RECTANGLE;
+        if (description.equals("LARGE"))
+            return ISBannerSize.LARGE;
+        return ISBannerSize.BANNER;
+    }
+
+    public float getMaximalAdaptiveHeight(float width) {
+        int widthInt = (int) width;
+        return ISBannerSize.getMaximalAdaptiveHeight(widthInt);
+    }
+
+    public float getDeviceScreenWidth() {
+        Activity activity = getUnityActivity();
+        if (activity != null) {
+            WindowManager windowManager = activity.getWindowManager();
+            if (windowManager != null) {
+                Display display = windowManager.getDefaultDisplay();
+                if (display != null) {
+                    DisplayMetrics displayMetrics = new DisplayMetrics();
+                    display.getMetrics(displayMetrics);
+                    int widthPixels = displayMetrics.widthPixels;
+                    float density = displayMetrics.density;
+                    return widthPixels / density;
+                }
+            }
+        }
+        return 0.0F;
+    }
+
+    public Activity getUnityActivity() {
+        return UnityPlayer.currentActivity;
+    }
+
     private void LoadNormalBanner(Activity activity) {
 
         ISBannerSize size = ISBannerSize.BANNER;
@@ -525,8 +660,6 @@ public class IronsourceAdsService implements IAdsService {
 
             ViewGroup rootView = activity.findViewById(android.R.id.content);
             rootView.addView(mBannerContainer);
-
-            size.setContainerParams(new ISContainerParams());
         }
 
 
