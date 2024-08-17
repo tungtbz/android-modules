@@ -60,7 +60,7 @@ public class IronsourceAdsService implements IAdsService {
 
     private FrameLayout mBannerContainer;
     private IronSourceBannerLayout mIronSourceBannerLayout;
-    private IronSourceBannerLayout mBanner;
+    //    private IronSourceBannerLayout mBanner;
     private int mBannerVisibilityState;
 
     private FrameLayout mRECParentContainer;
@@ -73,6 +73,10 @@ public class IronsourceAdsService implements IAdsService {
     private boolean _useMRECAdmob;
     private boolean _bannerLoaded;
     private boolean _needShowBanner;
+
+    private boolean mIsBannerLoadCalled;
+
+    private boolean mIsBannerLoadedFirst;
 
     private IronsourceAdsService() {
         this.mUIHandler = new Handler(Looper.getMainLooper());
@@ -519,88 +523,6 @@ public class IronsourceAdsService implements IAdsService {
         _isDisableResumeAds = false;
     }
 
-    private void LoadNormalBannerNew(Activity activity,
-                                     int position, final String description,
-                                     final int width, final int height, final boolean isAdaptive,
-                                     final float containerWidth, final float containerHeight,
-                                     final boolean isRespectCutoutsEnabled) {
-        this.mUIHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                synchronized (this) {
-                    try {
-                        //create banner container
-                        if (IronsourceAdsService.this.mBannerContainer == null) {
-                            IronsourceAdsService.this.mBannerContainer = new FrameLayout((Context) UnityPlayer.currentActivity);
-                            IronsourceAdsService.this.mBannerContainer.setBackgroundColor(0);
-                            IronsourceAdsService.this.mBannerContainer.setVisibility(IronsourceAdsService.this.mBannerVisibilityState);
-
-                            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-1, -2);
-                            params.gravity = (position == 1) ? 48 : 80;
-                            UnityPlayer.currentActivity.addContentView((View) IronsourceAdsService.this.mBannerContainer, (ViewGroup.LayoutParams) params);
-                        }
-                        ISBannerSize size = IronsourceAdsService.this.getBannerSize(description, width, height);
-                        if (isAdaptive) {
-                            size.setAdaptive(isAdaptive);
-                            float widthx = containerWidth;
-                            float heightx = containerHeight;
-                            if (widthx <= 0.0F)
-                                widthx = IronsourceAdsService.this.getDeviceScreenWidth();
-                            if (heightx <= 0.0F)
-                                heightx = IronsourceAdsService.this.getMaximalAdaptiveHeight(widthx);
-
-                            ISContainerParams isContainerParams = new ISContainerParams((int) widthx, (int) heightx);
-                            size.setContainerParams(isContainerParams);
-                        }
-                        if (isRespectCutoutsEnabled &&
-                                Build.VERSION.SDK_INT >= 28) {
-                            IronsourceAdsService.this.mBannerContainer.setFitsSystemWindows(true);
-                            IronsourceAdsService.this.mBannerContainer.setSystemUiVisibility(1280);
-                        }
-                        IronsourceAdsService.this.mBanner = IronSource.createBanner(IronsourceAdsService.this.getUnityActivity(), size);
-                        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(-1, -2);
-                        layoutParams.gravity = (position == 1) ? 48 : 80;
-                        IronsourceAdsService.this.mBannerContainer.addView((View)IronsourceAdsService.this.mBanner, (ViewGroup.LayoutParams)layoutParams);
-
-                        IronsourceAdsService.this.mBanner.setLevelPlayBannerListener(new LevelPlayBannerListener() {
-                            @Override
-                            public void onAdLoaded(AdInfo adInfo) {
-
-                            }
-
-                            @Override
-                            public void onAdLoadFailed(IronSourceError ironSourceError) {
-
-                            }
-
-                            @Override
-                            public void onAdClicked(AdInfo adInfo) {
-
-                            }
-
-                            @Override
-                            public void onAdLeftApplication(AdInfo adInfo) {
-
-                            }
-
-                            @Override
-                            public void onAdScreenPresented(AdInfo adInfo) {
-
-                            }
-
-                            @Override
-                            public void onAdScreenDismissed(AdInfo adInfo) {
-
-                            }
-                        });
-                    } catch (Exception e) {
-
-                    }
-                }
-            }
-        });
-    }
-
     private ISBannerSize getBannerSize(String description, int width, int height) {
         if (description.equals("CUSTOM"))
             return new ISBannerSize(width, height);
@@ -641,82 +563,99 @@ public class IronsourceAdsService implements IAdsService {
     }
 
     private void LoadNormalBanner(Activity activity) {
+        this.mUIHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                synchronized (IronsourceAdsService.this) {
+                    try {
+                        if (IronsourceAdsService.this.mBannerContainer == null) {
+                            IronsourceAdsService.this.mBannerContainer = new FrameLayout((Context) UnityPlayer.currentActivity);
+                            IronsourceAdsService.this.mBannerContainer.setBackgroundColor(0);
+                            IronsourceAdsService.this.mBannerContainer.setVisibility(IronsourceAdsService.this.mBannerVisibilityState);
 
-        ISBannerSize size = ISBannerSize.BANNER;
-        size.setAdaptive(true);
+                            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-1, -2);
+                            params.gravity = _bannerPosition == Constants.POSITION_CENTER_TOP ?
+                                    Gravity.CENTER_HORIZONTAL | Gravity.TOP :
+                                    Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+                            UnityPlayer.currentActivity.addContentView((View) IronsourceAdsService.this.mBannerContainer, (ViewGroup.LayoutParams) params);
+                        }
 
-        if (mBannerContainer == null) {
-            //create banner's container
-            // Stretch to the width of the screen for banners to be fully functional
-            int width = ViewGroup.LayoutParams.MATCH_PARENT;
-            // wrap banner height
-            // int height = ViewGroup.LayoutParams.WRAP_CONTENT;
-            int height = ISBannerSize.getMaximalAdaptiveHeight(width);
+                        ISBannerSize size = ISBannerSize.BANNER;
+                        size.setAdaptive(true);
+                        float widthx = IronsourceAdsService.this.getDeviceScreenWidth();
+                        float heightx = IronsourceAdsService.this.getMaximalAdaptiveHeight(widthx);
 
-            int gravity = _bannerPosition == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-            mBannerContainer = new FrameLayout(activity.getApplicationContext());
-            mBannerContainer.setLayoutParams(new FrameLayout.LayoutParams(width, height, gravity));
-            mBannerContainer.setVisibility(View.GONE);
+                        ISContainerParams isContainerParams = new ISContainerParams((int) widthx, (int) heightx);
+                        size.setContainerParams(isContainerParams);
 
-            ViewGroup rootView = activity.findViewById(android.R.id.content);
-            rootView.addView(mBannerContainer);
-        }
+                        if (Build.VERSION.SDK_INT >= 28) {
+                            IronsourceAdsService.this.mBannerContainer.setFitsSystemWindows(true);
+                            IronsourceAdsService.this.mBannerContainer.setSystemUiVisibility(1280);
+                        }
 
+                        IronsourceAdsService.this.mIronSourceBannerLayout = IronSource.createBanner(IronsourceAdsService.this.getUnityActivity(), size);
+                        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                        layoutParams.gravity = _bannerPosition == Constants.POSITION_CENTER_TOP ?
+                                Gravity.CENTER_HORIZONTAL | Gravity.TOP :
+                                Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+                        IronsourceAdsService.this.mBannerContainer.addView((View) IronsourceAdsService.this.mIronSourceBannerLayout,
+                                (ViewGroup.LayoutParams) layoutParams);
 
-        mIronSourceBannerLayout = IronSource.createBanner(activity, size);
+                        if (mIronSourceBannerLayout != null) {
+                            LevelPlayBannerListener levelPlayBannerListener = new LevelPlayBannerListener() {
+                                @Override
+                                public void onAdLoaded(AdInfo adInfo) {
+                                    Log.d(TAG, "onBannerAdLoaded");
+                                    _bannerLoaded = true;
+                                    // since banner container was "gone" by default, we need to make it visible as soon as the banner is ready
+                                    if (_needShowBanner && mBannerContainer.getVisibility() == View.GONE)
+                                        mBannerContainer.setVisibility(View.VISIBLE);
+                                    if (!_needShowBanner && mBannerContainer.getVisibility() == View.VISIBLE)
+                                        mBannerContainer.setVisibility(View.GONE);
+                                }
 
-        if (mIronSourceBannerLayout != null) {
-            LevelPlayBannerListener levelPlayBannerListener = new LevelPlayBannerListener() {
-                @Override
-                public void onAdLoaded(AdInfo adInfo) {
-                    Log.d(TAG, "onBannerAdLoaded");
-                    _bannerLoaded = true;
-                    // since banner container was "gone" by default, we need to make it visible as soon as the banner is ready
-                    if (_needShowBanner && mBannerContainer.getVisibility() == View.GONE)
-                        mBannerContainer.setVisibility(View.VISIBLE);
-                    if (!_needShowBanner && mBannerContainer.getVisibility() == View.VISIBLE)
-                        mBannerContainer.setVisibility(View.GONE);
+                                @Override
+                                public void onAdLoadFailed(IronSourceError ironSourceError) {
+                                    Log.d(TAG, "onBannerAdLoadFailed" + " " + ironSourceError);
+                                }
+
+                                @Override
+                                public void onAdClicked(AdInfo adInfo) {
+                                    Log.d(TAG, "onBannerAdClicked");
+                                    _adsEventListener.onAdClicked("BANNER");
+                                    isAdClicked = true;
+                                }
+
+                                @Override
+                                public void onAdLeftApplication(AdInfo adInfo) {
+
+                                }
+
+                                @Override
+                                public void onAdScreenPresented(AdInfo adInfo) {
+
+                                }
+
+                                @Override
+                                public void onAdScreenDismissed(AdInfo adInfo) {
+
+                                }
+                            };
+
+                            // set the banner listener
+                            mIronSourceBannerLayout.setLevelPlayBannerListener(levelPlayBannerListener);
+
+                            // Load the ad
+                            IronSource.loadBanner(mIronSourceBannerLayout);
+                            Log.d(TAG, "Start Load Banner");
+                        }
+
+                    } catch (Exception e) {
+                        Log.d(TAG, "Load  failed: " + e.getMessage());
+                    }
                 }
-
-                @Override
-                public void onAdLoadFailed(IronSourceError ironSourceError) {
-                    Log.d(TAG, "onBannerAdLoadFailed" + " " + ironSourceError);
-                }
-
-                @Override
-                public void onAdClicked(AdInfo adInfo) {
-                    Log.d(TAG, "onBannerAdClicked");
-                    _adsEventListener.onAdClicked("BANNER");
-                    isAdClicked = true;
-                }
-
-                @Override
-                public void onAdLeftApplication(AdInfo adInfo) {
-
-                }
-
-                @Override
-                public void onAdScreenPresented(AdInfo adInfo) {
-
-                }
-
-                @Override
-                public void onAdScreenDismissed(AdInfo adInfo) {
-
-                }
-            };
-
-            // set the banner listener
-            mIronSourceBannerLayout.setLevelPlayBannerListener(levelPlayBannerListener);
-
-            // add IronSourceBanner to your container
-            FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-            mBannerContainer.addView(mIronSourceBannerLayout, 0, layoutParams);
-
-            // Load the ad
-            IronSource.loadBanner(mIronSourceBannerLayout);
-            Log.d(TAG, "Start Load Banner");
-        }
+            }
+        });
     }
 
     private void CreateAndLoadRectBanner(Activity activity) {
