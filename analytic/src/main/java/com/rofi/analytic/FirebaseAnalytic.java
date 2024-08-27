@@ -38,9 +38,9 @@ public class FirebaseAnalytic implements IAnalytic {
     }
 
     @Override
-    public void RevenueTracking(Activity activity, String adFormat, String adUnitId, String adSource, double value) {
+    public void RevenueTracking(Activity activity, String adPlatform, String adFormat, String adUnitId, String adSource, double value) {
         Bundle params = new Bundle();
-        params.putString(FirebaseAnalytics.Param.AD_PLATFORM, "appLovin");
+        params.putString(FirebaseAnalytics.Param.AD_PLATFORM, adPlatform);
         params.putString(FirebaseAnalytics.Param.AD_SOURCE, adSource);
         params.putString(FirebaseAnalytics.Param.AD_FORMAT, adFormat);
         params.putString(FirebaseAnalytics.Param.AD_UNIT_NAME, adUnitId);

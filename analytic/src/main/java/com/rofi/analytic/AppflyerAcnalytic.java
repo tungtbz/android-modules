@@ -48,7 +48,7 @@ public class AppflyerAcnalytic implements IAnalytic {
     }
 
     @Override
-    public void RevenueTracking(Activity activity, String adFormat, String adUnitId, String adNetwork, double value) {
+    public void RevenueTracking(Activity activity, String adPlatform, String adFormat, String adUnitId, String adNetwork, double value) {
         MediationNetwork mediationNetwork = GetMediationNetwork(_mainNetwork);
         Map<String, String> customParams = new HashMap<>();
         customParams.put(Scheme.AD_UNIT, adUnitId);

@@ -7,7 +7,7 @@ public interface IAnalytic {
 
     void LogEvent(Activity activity, String eventName, String eventData);
 
-    void RevenueTracking(Activity activity, String adFormat, String adUnitId, String adSource, double value);
+    void RevenueTracking(Activity activity, String adPlatform, String adFormat, String adUnitId, String adSource, double value);
 
     void ClickToAd(Activity activity, String adUnitId);
 

@@ -55,9 +55,9 @@ public class AnalyticServices {
         }
     }
 
-    public void RevenueTracking(Activity activity, String adFormat, String adUnitId, String adNetwork, double value) {
+    public void RevenueTracking(Activity activity, String adPlatform, String adFormat, String adUnitId, String adNetwork, double value) {
         for (IAnalytic analytic : analyticList) {
-            analytic.RevenueTracking(activity, adFormat, adUnitId, adNetwork, value);
+            analytic.RevenueTracking(activity, adPlatform, adFormat, adUnitId, adNetwork, value);
         }
     }
 
