@@ -243,6 +243,7 @@ public class AdmobHelper {
     public void showBanner() {
         if (bannerAdLoaded && cBannerView.getVisibility() == View.GONE) {
             Log.d(TAG, "showBanner");
+            cBannerView.resume();
             cBannerView.setVisibility(View.VISIBLE);
         }
     }
@@ -250,6 +251,7 @@ public class AdmobHelper {
     public void HideBanner() {
         if (bannerAdLoaded && cBannerView.getVisibility() == View.VISIBLE) {
             Log.d(TAG, "HideBanner");
+            cBannerView.pause();
             cBannerView.setVisibility(View.GONE);
         }
     }
