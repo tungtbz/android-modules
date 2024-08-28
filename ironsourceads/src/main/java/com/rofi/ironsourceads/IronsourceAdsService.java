@@ -74,7 +74,7 @@ public class IronsourceAdsService implements IAdsService {
     private boolean _bannerLoaded;
     private boolean _needShowBanner;
 
-    private IronsourceAdsService() {
+    public IronsourceAdsService() {
         this.mUIHandler = new Handler(Looper.getMainLooper());
     }
 
