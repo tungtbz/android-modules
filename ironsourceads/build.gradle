@@ -30,7 +30,7 @@ dependencies {
     //iron source ===================
     implementation 'com.ironsource.sdk:mediationsdk:8.2.1'
     implementation 'com.ironsource:adqualitysdk:7.20.3'
-
+    implementation 'com.tungt:unity-classes:0.0.1'
     implementation project(':base')
     implementation project(':remoteconfig')
     implementation project(':ads')
