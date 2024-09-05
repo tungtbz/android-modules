@@ -1,6 +1,8 @@
 package com.rofi.ads;
 
 public interface AdsEventListener {
+    void onAOAAdHidden();
+
     void onAdServiceLoaded();
 
     void onVideoRewardLoaded();
@@ -8,7 +10,6 @@ public interface AdsEventListener {
     void onVideoRewardDisplayed();
 
     void onVideoRewardUserRewarded(String requestCode);
-
 
     void onInterLoaded();
 

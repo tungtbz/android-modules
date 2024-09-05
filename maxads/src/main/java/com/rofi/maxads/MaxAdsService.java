@@ -246,6 +246,11 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 if (mFreeMrecAdViews == null) {
                     return;
                 }
+
+                if (!_isFreeMrecLoaded) {
+                    forceLoadFreeMrec();
+                }
+
                 mFreeMrecAdViews.setVisibility(View.VISIBLE);
                 mFreeMrecAdViews.startAutoRefresh();
             }
@@ -265,9 +270,11 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     }
 
     private boolean _isFreeMrecLoading;
+    private boolean _isFreeMrecLoaded;
 
     public void CreateFreeMrec(String adsId) {
         if (this._isFreeMrecLoading) return;
+        _isFreeMrecLoaded = false;
 
         mFreeMrecAdViews = new MaxAdView(adsId, MaxAdFormat.MREC, getCurrentActivity().getApplicationContext());
         mFreeMrecAdViews.setRevenueListener(new MaxAdRevenueListener() {
@@ -292,6 +299,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             public void onAdLoaded(MaxAd ad) {
                 Log.d(TAG, "Free MREC onAdLoaded: " + ad.getAdUnitId());
                 _isFreeMrecLoading = false;
+                _isFreeMrecLoaded = true;
             }
 
             @Override
@@ -316,6 +324,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 //                mRectBannerLoaded = false;
                 Log.d(TAG, "Free MREC: onAdLoadFailed: ");
                 _isFreeMrecLoading = false;
+                _isFreeMrecLoaded = false;
             }
 
             @Override
@@ -338,6 +347,10 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             this.updatePositionMrecAdview("centered", 0);
         }
 
+        forceLoadFreeMrec();
+    }
+
+    public void forceLoadFreeMrec() {
         runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
             @Override
             public void run() {
@@ -346,6 +359,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             }
         });
     }
+
 
     public void updatePositionMrecAdview(String adViewPosition, int adViewOffsetY) {
         getCurrentActivity().runOnUiThread(new Runnable() {
@@ -871,7 +885,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
     private void LogRevenue(MaxAd ad) {
         double revenue = ad.getRevenue(); // In USD
-        Log.d(TAG, "onAdRevenuePaid: revenue MRECT: " + revenue);
+        Log.d(TAG, ad.getFormat() + " onAdRevenuePaid:  " + revenue);
         String networkName = ad.getNetworkName(); // Display name of the network that showed the ad (e.g. "AdColony")
         String adUnitId = ad.getAdUnitId(); // The MAX Ad Unit ID
         String adFormatStr = ad.getFormat().getLabel();
@@ -1427,10 +1441,10 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             @Override
             public void onAdHidden(MaxAd maxAd) {
                 Log.d(TAG, "Open App onAdHidden!");
-
                 new Handler().postDelayed(new Runnable() {
                     @Override
                     public void run() {
+                        _adsAdsEventListener.onAOAAdHidden();
                         isFullscreenAdsShowing = false;
                     }
                 }, 2 * 1000);
