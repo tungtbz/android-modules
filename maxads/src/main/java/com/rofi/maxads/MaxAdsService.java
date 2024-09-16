@@ -191,7 +191,6 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         Context context = activity.getApplicationContext();
 
         AppLovinPrivacySettings.setHasUserConsent(true, context);
-        AppLovinPrivacySettings.setIsAgeRestrictedUser(false, context);
         AppLovinPrivacySettings.setDoNotSell(false, context);
 
         this.sdk = AppLovinSdk.getInstance(activity.getApplicationContext());
@@ -501,21 +500,6 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
         mRewardedAd.setListener(new MaxRewardedAdListener() {
             @Override
-            public void onRewardedVideoStarted(MaxAd ad) {
-                Log.d(TAG, "onRewardedVideoStarted: ============================");
-                isFullscreenAdsShowing = true;
-
-                if (blockAutoShowInterCount <= 0) {
-                    IncreaseBlockAutoShowInter();
-                }
-            }
-
-            @Override
-            public void onRewardedVideoCompleted(MaxAd ad) {
-                Log.d(TAG, "onRewardedVideoCompleted: =============================");
-            }
-
-            @Override
             public void onUserRewarded(final MaxAd maxAd, final MaxReward maxReward) {
                 Log.d(TAG, "video reward onUserRewarded: =============================");
                 // Rewarded ad was displayed and user should receive the reward
@@ -535,10 +519,15 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
             @Override
             public void onAdDisplayed(MaxAd ad) {
+                Log.d(TAG, "video reward onAdDisplayed: =============================");
+                isFullscreenAdsShowing = true;
+
 //                AnalyticServices.getInstance().LogEvent(UnityPlayer.currentActivity, "af_rewarded_ad_displayed", null);
                 _adsAdsEventListener.onVideoRewardDisplayed();
-                Log.d(TAG, "video reward onAdDisplayed: =============================");
-                IncreaseBlockAutoShowInter();
+
+                if (blockAutoShowInterCount <= 0) {
+                    IncreaseBlockAutoShowInter();
+                }
             }
 
             @Override
