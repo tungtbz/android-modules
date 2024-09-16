@@ -42,9 +42,12 @@ import com.applovin.mediation.ads.MaxRewardedAd;
 import com.applovin.mediation.nativeAds.MaxNativeAdListener;
 import com.applovin.mediation.nativeAds.MaxNativeAdLoader;
 import com.applovin.mediation.nativeAds.MaxNativeAdView;
+import com.applovin.sdk.AppLovinMediationProvider;
 import com.applovin.sdk.AppLovinPrivacySettings;
 import com.applovin.sdk.AppLovinSdk;
 import com.applovin.sdk.AppLovinSdkConfiguration;
+import com.applovin.sdk.AppLovinSdkInitializationConfiguration;
+import com.applovin.sdk.AppLovinSdkSettings;
 import com.applovin.sdk.AppLovinSdkUtils;
 import com.rofi.ads.AdsEventListener;
 import com.rofi.ads.IAdsService;
@@ -131,6 +134,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
     private AppLovinSdk sdk;
     private MaxAdView mFreeMrecAdViews;
+    private String sdkKey;
 
     protected static class Insets {
         int left;
@@ -149,28 +153,28 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             return;
         }
         _activity = activity;
+        sdkKey = args[0];
+        _bannerAdId = args[1];
+        _interAdId = args[2];
+        _rewardAdId = args[3];
+        _mrecAdId = args[4];
+        _nativeRectAdId = args[5];
+        _nativeSmallAdId = args[6];
 
-        _bannerAdId = args[0];
-        _interAdId = args[1];
-        _rewardAdId = args[2];
-        _mrecAdId = args[3];
-        _nativeRectAdId = args[4];
-        _nativeSmallAdId = args[5];
+        _bannerPosition = Integer.parseInt(args[7]);
+        _mrecPosition = Integer.parseInt(args[8]);
 
-        _bannerPosition = Integer.parseInt(args[6]);
-        _mrecPosition = Integer.parseInt(args[7]);
-
-        if (args.length >= 9) _openAdsId = args[8];
+        if (args.length >= 10) _openAdsId = args[9];
 
         _apsEnable = false;
         //aps
-        if (args.length >= 12) {
+        if (args.length >= 13) {
 
-            _apsAppId = args[9];
-            _apsBannerId = args[10];
-            _apsMRECId = args[11];
-            _apsInterId = args[12];
-            _apsVideoRewardId = args[13];
+            _apsAppId = args[10];
+            _apsBannerId = args[11];
+            _apsMRECId = args[12];
+            _apsInterId = args[13];
+            _apsVideoRewardId = args[14];
 
             if (_apsAppId != null && !_apsAppId.equals("")) {
                 _apsEnable = true;
@@ -186,22 +190,35 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             }
         }
 
+        if (sdkKey == null || sdkKey.isEmpty()) {
+            Log.d(TAG, "sdkKey is empty");
+            return;
+        }
+
         mRectBannerState = 0;
         mRectShowFlag = 1;
+
         Context context = activity.getApplicationContext();
+        // Create the initialization configuration
+        AppLovinSdkInitializationConfiguration initConfig = AppLovinSdkInitializationConfiguration.builder(sdkKey, context)
+                .setMediationProvider(AppLovinMediationProvider.MAX)
+                .setPluginVersion("Max-Unity-Custom")
+                // Perform any additional configuration/setting changes
+                .build();
 
         AppLovinPrivacySettings.setHasUserConsent(true, context);
         AppLovinPrivacySettings.setDoNotSell(false, context);
+        this.sdk = AppLovinSdk.getInstance(context);
 
-        this.sdk = AppLovinSdk.getInstance(activity.getApplicationContext());
-        this.sdk.setMediationProvider("max");
-        this.sdk.setPluginVersion("Max-Unity-6.5.2");
         this.sdk.getSettings().setVerboseLogging(BuildConfig.DEBUG);
         this.sdk.getSettings().setCreativeDebuggerEnabled(BuildConfig.DEBUG);
 
-        AppLovinSdk.initializeSdk(activity.getApplicationContext(), new AppLovinSdk.SdkInitializationListener() {
+        //init sdk
+        // Initialize the SDK with the configuration
+        this.sdk.initialize(initConfig, new AppLovinSdk.SdkInitializationListener() {
             @Override
-            public void onSdkInitialized(final AppLovinSdkConfiguration configuration) {
+            public void onSdkInitialized(final AppLovinSdkConfiguration sdkConfig) {
+                // Start loading ads
                 Log.d(TAG, "onSdkInitialized");
 
                 InitVideoRewardAds(_activity);
@@ -217,6 +234,25 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 }
             }
         });
+
+//        AppLovinSdk.initializeSdk(activity.getApplicationContext(), new AppLovinSdk.SdkInitializationListener() {
+//            @Override
+//            public void onSdkInitialized(final AppLovinSdkConfiguration configuration) {
+//                Log.d(TAG, "onSdkInitialized");
+//
+//                InitVideoRewardAds(_activity);
+//                InitInterAds(_activity);
+//
+////                //cache MREC
+//                LoadMREC(_activity, _mrecPosition);
+//
+//                _adsAdsEventListener.onAdServiceLoaded();
+//
+//                if (BuildConfig.DEBUG) {
+//                    sdk.showMediationDebugger();
+//                }
+//            }
+//        });
     }
 
     static Activity getCurrentActivity() {
