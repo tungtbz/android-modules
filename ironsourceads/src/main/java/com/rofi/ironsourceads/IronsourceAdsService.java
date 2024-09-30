@@ -102,41 +102,43 @@ public class IronsourceAdsService implements IAdsService {
         IronSource.setMetaData("is_child_directed", "false");
         _needShowBanner = false;
 
-        ISAdQualityConfig.Builder adQualityConfigBuilder = new ISAdQualityConfig.Builder().setAdQualityInitListener(new ISAdQualityInitListener() {
+        IronSource.init(activity, _appKey, new InitializationListener() {
             @Override
-            public void adQualitySdkInitSuccess() {
-                Log.d(TAG, "adQualitySdkInitSuccess");
-                
-                IronSource.init(activity, _appKey, new InitializationListener() {
-                    @Override
-                    public void onInitializationComplete() {
-                        if (BuildConfig.DEBUG) IronSource.launchTestSuite(activity);
-                        if (BuildConfig.DEBUG) IntegrationHelper.validateIntegration(activity);
+            public void onInitializationComplete() {
+                if (BuildConfig.DEBUG) IronSource.launchTestSuite(activity);
+                if (BuildConfig.DEBUG) IntegrationHelper.validateIntegration(activity);
 
-                        Log.d(TAG, "onInitializationComplete");
+                Log.d(TAG, "onInitializationComplete");
 
-                        IronSource.loadInterstitial();
+                IronSource.loadInterstitial();
 
-                        if (_useMRECAdmob) PreloadBanner(activity);
-                    }
-                }, IronSource.AD_UNIT.INTERSTITIAL, IronSource.AD_UNIT.REWARDED_VIDEO, IronSource.AD_UNIT.BANNER);
+                if (_useMRECAdmob) PreloadBanner(activity);
             }
+        }, IronSource.AD_UNIT.INTERSTITIAL, IronSource.AD_UNIT.REWARDED_VIDEO, IronSource.AD_UNIT.BANNER);
 
-            @Override
-            public void adQualitySdkInitFailed(ISAdQualityInitError error, String message) {
-                Log.d(TAG, "adQualitySdkInitFailed " + error + " message: " + message);
-            }
-        });
-
-        adQualityConfigBuilder.setTestMode(BuildConfig.DEBUG);
-
-        if (BuildConfig.DEBUG) {
-            adQualityConfigBuilder.setLogLevel(ISAdQualityLogLevel.VERBOSE);
-        }
-        ISAdQualityConfig adQualityConfig = adQualityConfigBuilder.build();
-
-        // Initialize ad quality
-        IronSourceAdQuality.getInstance().initialize(activity.getApplicationContext(), _appKey, adQualityConfig);
+//        ISAdQualityConfig.Builder adQualityConfigBuilder = new ISAdQualityConfig.Builder().setAdQualityInitListener(new ISAdQualityInitListener() {
+//            @Override
+//            public void adQualitySdkInitSuccess() {
+//                Log.d(TAG, "adQualitySdkInitSuccess");
+//
+//
+//            }
+//
+//            @Override
+//            public void adQualitySdkInitFailed(ISAdQualityInitError error, String message) {
+//                Log.d(TAG, "adQualitySdkInitFailed " + error + " message: " + message);
+//            }
+//        });
+//
+//        adQualityConfigBuilder.setTestMode(BuildConfig.DEBUG);
+//
+//        if (BuildConfig.DEBUG) {
+//            adQualityConfigBuilder.setLogLevel(ISAdQualityLogLevel.VERBOSE);
+//        }
+//        ISAdQualityConfig adQualityConfig = adQualityConfigBuilder.build();
+//
+//        // Initialize ad quality
+//        IronSourceAdQuality.getInstance().initialize(activity.getApplicationContext(), _appKey, adQualityConfig);
 
         IronSource.shouldTrackNetworkState(activity.getApplicationContext(), true);
     }
