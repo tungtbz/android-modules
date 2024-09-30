@@ -106,7 +106,7 @@ public class IronsourceAdsService implements IAdsService {
             @Override
             public void adQualitySdkInitSuccess() {
                 Log.d(TAG, "adQualitySdkInitSuccess");
-
+                
                 IronSource.init(activity, _appKey, new InitializationListener() {
                     @Override
                     public void onInitializationComplete() {
@@ -127,9 +127,12 @@ public class IronsourceAdsService implements IAdsService {
                 Log.d(TAG, "adQualitySdkInitFailed " + error + " message: " + message);
             }
         });
+
         adQualityConfigBuilder.setTestMode(BuildConfig.DEBUG);
 
-        if (BuildConfig.DEBUG) adQualityConfigBuilder.setLogLevel(ISAdQualityLogLevel.VERBOSE);
+        if (BuildConfig.DEBUG) {
+            adQualityConfigBuilder.setLogLevel(ISAdQualityLogLevel.VERBOSE);
+        }
         ISAdQualityConfig adQualityConfig = adQualityConfigBuilder.build();
 
         // Initialize ad quality
