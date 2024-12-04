@@ -203,13 +203,14 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         AppLovinSdkInitializationConfiguration initConfig = AppLovinSdkInitializationConfiguration.builder(sdkKey, context)
                 .setMediationProvider(AppLovinMediationProvider.MAX)
                 .setPluginVersion("Max-Unity-Custom")
+                .setPluginVersion("13.0.1")
                 // Perform any additional configuration/setting changes
                 .build();
 
         AppLovinPrivacySettings.setHasUserConsent(true, context);
         AppLovinPrivacySettings.setDoNotSell(false, context);
-        this.sdk = AppLovinSdk.getInstance(context);
 
+        this.sdk = AppLovinSdk.getInstance(context);
         this.sdk.getSettings().setVerboseLogging(BuildConfig.DEBUG);
         this.sdk.getSettings().setCreativeDebuggerEnabled(BuildConfig.DEBUG);
 
@@ -234,25 +235,6 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 }
             }
         });
-
-//        AppLovinSdk.initializeSdk(activity.getApplicationContext(), new AppLovinSdk.SdkInitializationListener() {
-//            @Override
-//            public void onSdkInitialized(final AppLovinSdkConfiguration configuration) {
-//                Log.d(TAG, "onSdkInitialized");
-//
-//                InitVideoRewardAds(_activity);
-//                InitInterAds(_activity);
-//
-////                //cache MREC
-//                LoadMREC(_activity, _mrecPosition);
-//
-//                _adsAdsEventListener.onAdServiceLoaded();
-//
-//                if (BuildConfig.DEBUG) {
-//                    sdk.showMediationDebugger();
-//                }
-//            }
-//        });
     }
 
     static Activity getCurrentActivity() {

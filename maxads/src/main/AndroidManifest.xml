@@ -3,8 +3,5 @@
     package="com.rofi.maxads">
 
     <application>
-        <meta-data
-            android:name="applovin.sdk.key"
-            android:value="@string/applovin_sdk_id" />
     </application>
 </manifest>
