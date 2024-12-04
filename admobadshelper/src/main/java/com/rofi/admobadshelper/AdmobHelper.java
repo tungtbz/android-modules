@@ -666,7 +666,6 @@ public class AdmobHelper {
                 if (adsEventCallback != null)
                     adsEventCallback.onAdDisplayFullScreenContent(0);
             }
-
         });
 
         _isShowingAd = true;
