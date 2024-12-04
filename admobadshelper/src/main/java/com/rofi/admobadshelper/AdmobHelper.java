@@ -515,6 +515,12 @@ public class AdmobHelper {
             public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                 super.onAdFailedToLoad(loadAdError);
                 Log.d(TAG, "MREC onAdFailedToLoad" + "\nloadAdError: " + loadAdError.getMessage());
+
+                // Tải lại quảng cáo sau 30 giây
+                mrecAdView.postDelayed(() -> {
+                    AdRequest adRequest = new AdRequest.Builder().build();
+                    mrecAdView.loadAd(adRequest);
+                }, 30000);  // 30 giây
             }
         });
 
@@ -660,7 +666,6 @@ public class AdmobHelper {
                 if (adsEventCallback != null)
                     adsEventCallback.onAdDisplayFullScreenContent(0);
             }
-
         });
 
         _isShowingAd = true;

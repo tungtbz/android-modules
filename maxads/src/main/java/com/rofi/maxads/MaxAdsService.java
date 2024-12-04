@@ -700,7 +700,8 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 }
                 Log.d(TAG, "Inter: onAdHidden Normal");
 
-                coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
+                coolDownShowInterInSecond =  FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
+//                FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
 
 //                ThreadUltils.startTask(() -> {
 //                    // doTask
@@ -985,7 +986,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight();
         int heightPx = AppLovinSdkUtils.dpToPx(activity, heightDp);
         bannerAdView.setExtraParameter("adaptive_banner", "true");
-        bannerAdView.setBackgroundColor(Color.rgb(0, 0, 0));
+        bannerAdView.setBackgroundColor(Color.TRANSPARENT);
 
         int gravity = 0;
         if (position == Constants.POSITION_CENTER_TOP)
