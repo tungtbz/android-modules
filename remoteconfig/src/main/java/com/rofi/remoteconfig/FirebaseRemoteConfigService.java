@@ -60,6 +60,7 @@ public class FirebaseRemoteConfigService {
                                             isConfigFetched.set(true);
                                         } else {
                                             Log.d(TAG, "fetchAndActivate Failed");
+                                            isConfigFetched.set(true);
                                         }
                                     }
                                 });

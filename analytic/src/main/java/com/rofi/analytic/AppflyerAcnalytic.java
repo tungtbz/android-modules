@@ -30,18 +30,20 @@ public class AppflyerAcnalytic implements IAnalytic {
         AppsFlyerLib.getInstance().init(af_dev_key, null, activity.getApplicationContext());
         AppsFlyerLib.getInstance().start(activity.getApplicationContext());
 
+        if (BuildConfig.DEBUG) AppsFlyerLib.getInstance().setDebugLog(true);
+
         AppsFlyerAdRevenue.Builder afRevenueBuilder = new AppsFlyerAdRevenue.Builder(activity.getApplication());
         AppsFlyerAdRevenue.initialize(afRevenueBuilder.build());
+
+
     }
 
     @Override
     public void LogEvent(Activity activity, String eventName, String eventData) {
         Map<String, Object> appflyerEventData = new HashMap<String, Object>();
         if (eventData != null) {
-            appflyerEventData = new Gson().fromJson(
-                    eventData, new TypeToken<HashMap<String, Object>>() {
-                    }.getType()
-            );
+            appflyerEventData = new Gson().fromJson(eventData, new TypeToken<HashMap<String, Object>>() {
+            }.getType());
         }
 
         AppsFlyerLib.getInstance().logEvent(activity.getApplicationContext(), eventName, appflyerEventData);
