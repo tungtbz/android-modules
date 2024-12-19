@@ -186,16 +186,20 @@ public class IronsourceAdsService implements IAdsService {
                 Log.d(TAG, "Reward: onAdClosed");
 
                 isFullscreenAdsShowing = false;
+                _isShowingRewardAds = false;
 
-                if (!isCoolDownShowInter) {
-                    isCoolDownShowInter = true;
-                    int coolDownShowInterInSencond = 5;
-                    ThreadUltils.startTask(() -> {
-                        // doTask
-                        isCoolDownShowInter = false;
-                        _isShowingRewardAds = false;
-                    }, coolDownShowInterInSencond * 1000L);
-                }
+//                if (!isCoolDownShowInter) {
+//                    isCoolDownShowInter = true;
+//                    int coolDownShowInterInSencond  = 4;
+//                    ThreadUltils.startTask(() -> {
+//                        // doTask
+////                        isCoolDownShowInter = false;
+//
+//                    }, coolDownShowInterInSencond * 1000L);
+//                }
+
+                coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
+                RunCountDownToShowInter();
             }
 
             // The user completed to watch the video, and should be rewarded.
@@ -295,6 +299,9 @@ public class IronsourceAdsService implements IAdsService {
 
     @Override
     public boolean IsInterReady() {
+        if (isCoolDownShowInter) return false;
+        if (_isDisableInterAds) return false;
+
         return IronSource.isInterstitialReady();
     }
 

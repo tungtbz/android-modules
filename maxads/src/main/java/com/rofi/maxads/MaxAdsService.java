@@ -555,15 +555,18 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 LoadVideoRewardAd(false);
                 isFullscreenAdsShowing = false;
 
+                coolDownShowInterInSecond =  FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
+                RunCountDownToShowInter();
+
                 //add some delay
-                if (!isCoolDownShowInter) {
-                    isCoolDownShowInter = true;
-                    ThreadUltils.startTask(() -> {
-                        // doTask
-                        isCoolDownShowInter = false;
-                        Log.d(TAG, "Inter Reset Cooldown");
-                    }, 5 * 1000L);
-                }
+//                if (!isCoolDownShowInter) {
+//                    isCoolDownShowInter = true;
+//                    ThreadUltils.startTask(() -> {
+//                        // doTask
+//                        isCoolDownShowInter = false;
+//                        Log.d(TAG, "Inter Reset Cooldown");
+//                    }, 5 * 1000L);
+//                }
             }
 
             @Override
@@ -683,14 +686,6 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 Log.d(TAG, "Inter: onAdHidden Normal");
 
                 coolDownShowInterInSecond =  FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
-//                FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
-
-//                ThreadUltils.startTask(() -> {
-//                    // doTask
-//                    isCoolDownShowInter = false;
-//                    mCurrentInterRequestCode = 0;
-//                    Log.d(TAG, "Inter: onAdHidden Reset Cooldown");
-//                }, coolDownShowInterInSencond * 1000L);
                 RunCountDownToShowInter();
 
                 _adsAdsEventListener.onInterHidden(String.valueOf(mCurrentInterRequestCode));
