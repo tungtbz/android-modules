@@ -1,6 +1,7 @@
 package com.rofi.analytic;
 
 import android.app.Activity;
+import android.content.Context;
 
 public interface IAnalytic {
     void Init(Activity activity, String[] args);
@@ -14,4 +15,6 @@ public interface IAnalytic {
     void AdmobAppOpenAdsRevenueTracking(Activity activity, String adSourceName, String adUnitId, double value);
 
     void AdmobAdsRevenueTracking(Activity activity, String adFormat, String adSourceName, String adUnitId, double value);
+
+    void LogIAPRevenue(Context context, String publicKey, String signature, String originalJson, String price, String currency);
 }

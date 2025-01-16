@@ -1,9 +1,11 @@
 package com.rofi.analytic;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.appsflyer.AppsFlyerInAppPurchaseValidatorListener;
 import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.adrevenue.AppsFlyerAdRevenue;
 import com.appsflyer.adrevenue.adnetworks.generic.MediationNetwork;
@@ -29,13 +31,28 @@ public class AppflyerAcnalytic implements IAnalytic {
 
         AppsFlyerLib.getInstance().init(af_dev_key, null, activity.getApplicationContext());
         AppsFlyerLib.getInstance().start(activity.getApplicationContext());
+        AppsFlyerLib.getInstance().registerValidatorListener(activity.getApplicationContext(), new AppsFlyerInAppPurchaseValidatorListener() {
+            @Override
+            public void onValidateInApp() {
+                Log.d(TAG, "Purchase validated successfully");
+            }
+
+            @Override
+            public void onValidateInAppFailure(String error) {
+                Log.e(TAG, "onValidateInAppFailure called: " + error);
+            }
+        });
 
         if (BuildConfig.DEBUG) AppsFlyerLib.getInstance().setDebugLog(true);
 
         AppsFlyerAdRevenue.Builder afRevenueBuilder = new AppsFlyerAdRevenue.Builder(activity.getApplication());
         AppsFlyerAdRevenue.initialize(afRevenueBuilder.build());
+    }
 
-
+    public void LogIAPRevenue(Context context, String publicKey, String signature, String originalJson, String price, String currency) {
+        Log.d(TAG, "ValidatePurchase publicKey: " + publicKey + " signature: " + signature + " originalJson: " + originalJson + " price: " + price + " currency: " + currency);
+        Map<String, String> eventValues = new HashMap<>();
+        AppsFlyerLib.getInstance().validateAndLogInAppPurchase(context, publicKey, signature, originalJson, price, currency, eventValues);
     }
 
     @Override

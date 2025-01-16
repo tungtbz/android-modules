@@ -81,6 +81,12 @@ public class AnalyticServices {
         }
     }
 
+    public void LogIAPRevenue(Context context, String publicKey, String signature, String originalJson, String price, String currency) {
+        for (IAnalytic analytic : analyticList) {
+            analytic.LogIAPRevenue(context, publicKey, signature, originalJson, price, currency);
+        }
+    }
+
     public void OnShowInter() {
         _showInterAdsCount += 1;
         Log.d(TAG, "OnShowInter: " + _showInterAdsCount);

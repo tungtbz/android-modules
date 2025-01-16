@@ -1,6 +1,7 @@
 package com.rofi.analytic;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 
 import com.google.firebase.analytics.FirebaseAnalytics;
@@ -78,5 +79,10 @@ public class FirebaseAnalytic implements IAnalytic {
         params.putDouble(FirebaseAnalytics.Param.VALUE, value);
         params.putString(FirebaseAnalytics.Param.CURRENCY, "USD"); // All Applovin revenue is sent in USD
         mFirebaseAnalytics.logEvent(FirebaseAnalytics.Event.AD_IMPRESSION, params);
+    }
+
+    @Override
+    public void LogIAPRevenue(Context context, String publicKey, String signature, String originalJson, String price, String currency) {
+
     }
 }
