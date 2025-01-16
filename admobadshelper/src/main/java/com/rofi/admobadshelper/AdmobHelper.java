@@ -454,7 +454,8 @@ public class AdmobHelper {
             } else {
                 consentCode = 1;
                 Log.d(TAG, "Consent Flow: FINISH----------------------");
-                if (consentCallback != null) consentCallback.onFinish(1);
+                if (consentCallback != null)
+                    consentCallback.onFinish(1);
             }
 
             if (googleMobileAdsConsentManager.canRequestAds()) {

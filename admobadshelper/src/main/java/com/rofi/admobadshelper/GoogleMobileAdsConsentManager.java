@@ -48,13 +48,6 @@ public final class GoogleMobileAdsConsentManager {
     }
 
     /**
-     * Interface definition for a callback to be invoked when consent gathering is complete.
-     */
-    public interface OnConsentGatheringCompleteListener {
-        void consentGatheringComplete(FormError error);
-    }
-
-    /**
      * Helper variable to determine if the app can request ads.
      */
     public boolean canRequestAds() {
@@ -73,20 +66,18 @@ public final class GoogleMobileAdsConsentManager {
      * Helper method to call the UMP SDK methods to request consent information and load/present a
      * consent form if necessary.
      */
-    public void gatherConsent(
-            Activity activity, OnConsentGatheringCompleteListener onConsentGatheringCompleteListener) {
-
+    public void gatherConsent(Activity activity, OnConsentGatheringCompleteListener onConsentGatheringCompleteListener) {
 
         ConsentRequestParameters params = null;
 
         if (BuildConfig.DEBUG) {
             // For testing purposes, you can force a DebugGeography of EEA or NOT_EEA.
             ConsentDebugSettings debugSettings = new ConsentDebugSettings.Builder(activity)
-                    .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
+//                    .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
                     // Check your logcat output for the hashed device ID e.g.
                     // "Use new ConsentDebugSettings.Builder().addTestDeviceHashedId("ABCDEF012345")" to use
                     // the debug functionality.
-                    .addTestDeviceHashedId("0B6312C522BE88E9F10AAC1F7CF2FC41")
+//                    .addTestDeviceHashedId("0B6312C522BE88E9F10AAC1F7CF2FC41")
                     .build();
 
             params = new ConsentRequestParameters.Builder()
@@ -120,11 +111,28 @@ public final class GoogleMobileAdsConsentManager {
     }
 
     /**
+     * Helper method to call the UMP SDK method to reset the consent state.
+     */
+    public void ResetConsentState() {
+        if (BuildConfig.DEBUG) {
+            if (consentInformation != null) {
+                consentInformation.reset();
+            }
+        }
+    }
+
+    /**
      * Helper method to call the UMP SDK method to present the privacy options form.
      */
-    public void showPrivacyOptionsForm(
-            Activity activity,
-            OnConsentFormDismissedListener onConsentFormDismissedListener) {
+    public void showPrivacyOptionsForm(Activity activity, OnConsentFormDismissedListener onConsentFormDismissedListener) {
         UserMessagingPlatform.showPrivacyOptionsForm(activity, onConsentFormDismissedListener);
+    }
+
+
+    /**
+     * Interface definition for a callback to be invoked when consent gathering is complete.
+     */
+    public interface OnConsentGatheringCompleteListener {
+        void consentGatheringComplete(FormError error);
     }
 }
