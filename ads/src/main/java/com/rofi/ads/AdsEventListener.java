@@ -21,4 +21,6 @@ public interface AdsEventListener {
 
     void onAdRevenuePaid(String adFormat, String adUnitId, String adNetwork, double value);
 
+    void onAdsAppResume(int code);
+
 }
