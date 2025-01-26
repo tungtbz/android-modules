@@ -18,8 +18,8 @@ dependencyResolutionManagement {
         maven {
             url = "https://maven.pkg.github.com/tungtbz/extralibs"
             credentials {
-                username = GITHUB_USER_NAME
-                password = GITHUB_TOKEN
+                username = ("GITHUB_USER_NAME")
+                password = ("GITHUB_READ_TOKEN")
             }
         }
     }
