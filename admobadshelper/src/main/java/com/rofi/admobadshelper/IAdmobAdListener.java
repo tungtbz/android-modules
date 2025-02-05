@@ -5,6 +5,7 @@ public interface IAdmobAdListener {
 
     void onAdDisplayFullScreenContent(int type);
     void onAdDismissedFullScreenContent(int type);
+    void onAOAFailedToLoad();
 
     void onAdClicked();
 

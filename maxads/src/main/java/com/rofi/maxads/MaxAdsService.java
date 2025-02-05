@@ -555,7 +555,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 LoadVideoRewardAd(false);
                 isFullscreenAdsShowing = false;
 
-                coolDownShowInterInSecond =  FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
+                coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
                 RunCountDownToShowInter();
 
                 //add some delay
@@ -685,7 +685,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 }
                 Log.d(TAG, "Inter: onAdHidden Normal");
 
-                coolDownShowInterInSecond =  FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
+                coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
                 RunCountDownToShowInter();
 
                 _adsAdsEventListener.onInterHidden(String.valueOf(mCurrentInterRequestCode));
@@ -1462,6 +1462,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             @Override
             public void onAdLoadFailed(String s, MaxError maxError) {
                 Log.d(TAG, "Open App On Ad LoadFailed!");
+                _adsAdsEventListener.onAOAAdHidden();
             }
 
             @Override

@@ -51,6 +51,7 @@ public interface IAdsService {
 
     boolean IsOpenAppAdsAvailable();
 
+
     void DisableResumeAds();
     void EnableResumeAds();
 

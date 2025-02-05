@@ -20,7 +20,7 @@ public class AmazonAdsService {
     public void Init(Activity activity, String appId) {
         // Amazon requires an 'Activity' instance
         AdRegistration.getInstance(appId, activity);
-        AdRegistration.setAdNetworkInfo(new DTBAdNetworkInfo(DTBAdNetwork.MAX));
+//        AdRegistration.setAdNetworkInfo(new DTBAdNetworkInfo(DTBAdNetwork.MAX));
         AdRegistration.setMRAIDSupportedVersions(new String[]{"1.0", "2.0", "3.0"});
         AdRegistration.setMRAIDPolicy(MRAIDPolicy.CUSTOM);
 
@@ -38,28 +38,28 @@ public class AmazonAdsService {
         // Raw size will be 320x50 for BANNERs on phones, and 728x90 for LEADERs on tablets
         AppLovinSdkUtils.Size rawSize = adFormat.getSize();
         DTBAdSize size = new DTBAdSize(rawSize.getWidth(), rawSize.getHeight(), amazonAdSlotId);
-
-        DTBAdRequest adLoader = new DTBAdRequest();
-        adLoader.setSizes(size);
-        adLoader.loadAd(dtbAdCallback);
+//
+//        DTBAdRequest adLoader = new DTBAdRequest();
+//        adLoader.setSizes(size);
+//        adLoader.loadAd(dtbAdCallback);
     }
 
     public void loadMRECAd(String amazonAdSlotId, DTBAdCallback callback) {
-        DTBAdRequest adLoader = new DTBAdRequest();
-        adLoader.setSizes(new DTBAdSize(300, 250, amazonAdSlotId));
-        adLoader.loadAd(callback);
+//        DTBAdRequest adLoader = new DTBAdRequest();
+//        adLoader.setSizes(new DTBAdSize(300, 250, amazonAdSlotId));
+//        adLoader.loadAd(callback);
     }
 
     public void loadInterAd(String amazonAdSlotId, DTBAdCallback callback) {
-        DTBAdRequest adLoader = new DTBAdRequest();
-        adLoader.setSizes(new DTBAdSize.DTBInterstitialAdSize(amazonAdSlotId));
-        adLoader.loadAd(callback);
+//        DTBAdRequest adLoader = new DTBAdRequest();
+//        adLoader.setSizes(new DTBAdSize.DTBInterstitialAdSize(amazonAdSlotId));
+//        adLoader.loadAd(callback);
     }
 
 
     public void loadRewardAd(String amazonAdSlotId, DTBAdCallback callback) {
-        DTBAdRequest adLoader = new DTBAdRequest();
-        adLoader.setSizes(new DTBAdSize.DTBVideo(320, 480, amazonAdSlotId));
-        adLoader.loadAd(callback);
+//        DTBAdRequest adLoader = new DTBAdRequest();
+//        adLoader.setSizes(new DTBAdSize.DTBVideo(320, 480, amazonAdSlotId));
+//        adLoader.loadAd(callback);
     }
 }

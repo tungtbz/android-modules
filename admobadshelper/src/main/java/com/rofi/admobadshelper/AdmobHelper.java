@@ -596,6 +596,7 @@ public class AdmobHelper {
             public void onAdFailedToLoad(LoadAdError loadAdError) {
                 Log.d(TAG, "App open ad has failed to load.");
                 _isLoadingAd = false;
+                adsEventCallback.onAOAFailedToLoad();
             }
         });
     }
