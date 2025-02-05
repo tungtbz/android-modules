@@ -2,6 +2,7 @@ package com.rofi.ads;
 
 public interface AdsEventListener {
     void onAOAAdHidden();
+    void onAOAFailedToLoad();
 
     void onAdServiceLoaded();
 
