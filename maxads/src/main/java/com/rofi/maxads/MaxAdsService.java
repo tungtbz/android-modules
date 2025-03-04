@@ -1518,6 +1518,11 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         _isDisableInterAds = false;
     }
 
+    @Override
+    public boolean isMrecLoaded() {
+        return isMRECLoaded;
+    }
+
     //ads callbacks
     @Override
     public void onAdExpanded(@NonNull MaxAd maxAd) {

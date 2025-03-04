@@ -772,4 +772,9 @@ public class IronsourceAdsService implements IAdsService {
     public void EnableInterAds() {
         _isDisableInterAds = false;
     }
+
+    @Override
+    public boolean isMrecLoaded() {
+        return mRECParentContainer != null && mIronSourceRECBannerLayout != null;
+    }
 }
