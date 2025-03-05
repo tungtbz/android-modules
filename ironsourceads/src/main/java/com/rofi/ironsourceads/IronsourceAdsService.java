@@ -777,4 +777,9 @@ public class IronsourceAdsService implements IAdsService {
     public boolean isMrecLoaded() {
         return mRECParentContainer != null && mIronSourceRECBannerLayout != null;
     }
+
+    @Override
+    public boolean canShowResumeAds() {
+        return !_isDisableResumeAds;
+    }
 }

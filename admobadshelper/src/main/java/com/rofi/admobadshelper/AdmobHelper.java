@@ -641,7 +641,8 @@ public class AdmobHelper {
                 // Called when fullscreen content is dismissed.
                 // Set the reference to null so isAdAvailable() returns false.
                 Log.d(TAG, "Ad dismissed fullscreen content.");
-                _appOpenAd = null;
+                loadAd(UnityPlayer.currentActivity);
+
                 _isShowingAd = false;
                 adsEventCallback.onAdDismissedFullScreenContent(0);
             }
@@ -651,7 +652,7 @@ public class AdmobHelper {
                 // Called when fullscreen content failed to show.
                 // Set the reference to null so isAdAvailable() returns false.
                 Log.d(TAG, adError.getMessage());
-                _appOpenAd = null;
+                loadAd(UnityPlayer.currentActivity);
                 _isShowingAd = false;
             }
 
@@ -699,5 +700,26 @@ public class AdmobHelper {
 
             loadBanner(true);
         });
+    }
+
+    boolean _isDisableResumeAds;
+
+    public boolean canShowResumeAds() {
+        return !_isDisableResumeAds;
+    }
+
+    public void disableResumeAds() {
+        Log.d(TAG, "[BUG RESUME] AOA disableResumeAds");
+        _isDisableResumeAds = true;
+    }
+
+    public void enableResumeAds() {
+        Log.d(TAG, "[BUG RESUME] AOA enableResumeAds");
+        _isDisableResumeAds = false;
+    }
+
+    public void showResumeAds() {
+        if (!canShowResumeAds()) return;
+        showAppOpenAds(UnityPlayer.currentActivity);
     }
 }

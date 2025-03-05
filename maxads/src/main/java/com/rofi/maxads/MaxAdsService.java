@@ -1525,6 +1525,11 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         return isMRECLoaded;
     }
 
+    @Override
+    public boolean canShowResumeAds() {
+        return !_isDisableResumeAds;
+    }
+
     //ads callbacks
     @Override
     public void onAdExpanded(@NonNull MaxAd maxAd) {
