@@ -57,4 +57,6 @@ public interface IAdsService {
 
     void DisableInterAds();
     void EnableInterAds();
+
+    boolean isMrecLoaded();
 }
