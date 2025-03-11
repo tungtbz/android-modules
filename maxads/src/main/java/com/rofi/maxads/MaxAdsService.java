@@ -1462,7 +1462,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             @Override
             public void onAdLoadFailed(String s, MaxError maxError) {
                 Log.d(TAG, "Open App On Ad LoadFailed!");
-                _adsAdsEventListener.onAOAAdHidden();
+                _adsAdsEventListener.onAOAFailedToLoad();
             }
 
             @Override
