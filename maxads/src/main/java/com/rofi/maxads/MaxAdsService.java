@@ -558,6 +558,8 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
                 RunCountDownToShowInter();
 
+                _adsAdsEventListener.onVideoRewardClosed();
+
                 //add some delay
 //                if (!isCoolDownShowInter) {
 //                    isCoolDownShowInter = true;

@@ -9,6 +9,7 @@ public interface AdsEventListener {
     void onVideoRewardLoaded();
 
     void onVideoRewardDisplayed();
+    void onVideoRewardClosed();
 
     void onVideoRewardUserRewarded(String requestCode);
 
