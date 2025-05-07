@@ -23,9 +23,6 @@ import android.widget.RelativeLayout;
 
 import androidx.annotation.NonNull;
 
-import com.amazon.device.ads.AdError;
-import com.amazon.device.ads.DTBAdCallback;
-import com.amazon.device.ads.DTBAdResponse;
 import com.applovin.mediation.MaxAd;
 import com.applovin.mediation.MaxAdFormat;
 import com.applovin.mediation.MaxAdListener;
@@ -130,7 +127,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
     private Timer timer;
 
-    private AmazonAdsService _maxAmazonAdsService;
+//    private AmazonAdsService _maxAmazonAdsService;
 
     private AppLovinSdk sdk;
     private MaxAdView mFreeMrecAdViews;
@@ -185,8 +182,8 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 Log.d(TAG, "APS _apsMRECId:" + _apsMRECId);
                 Log.d(TAG, "APS _apsVideoRewardId:" + _apsVideoRewardId);
 
-                _maxAmazonAdsService = new AmazonAdsService();
-                _maxAmazonAdsService.Init(activity, _apsAppId);
+//                _maxAmazonAdsService = new AmazonAdsService();
+//                _maxAmazonAdsService.Init(activity, _apsAppId);
             }
         }
 
@@ -200,15 +197,15 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
         Context context = activity.getApplicationContext();
         // Create the initialization configuration
-        AppLovinSdkInitializationConfiguration initConfig = AppLovinSdkInitializationConfiguration.builder(sdkKey, context)
+        AppLovinSdkInitializationConfiguration initConfig = AppLovinSdkInitializationConfiguration
+                .builder(sdkKey)
                 .setMediationProvider(AppLovinMediationProvider.MAX)
-                .setPluginVersion("Max-Unity-Custom")
                 .setPluginVersion("13.0.1")
                 // Perform any additional configuration/setting changes
                 .build();
 
-        AppLovinPrivacySettings.setHasUserConsent(true, context);
-        AppLovinPrivacySettings.setDoNotSell(false, context);
+        AppLovinPrivacySettings.setHasUserConsent(true);
+        AppLovinPrivacySettings.setDoNotSell(false);
 
         this.sdk = AppLovinSdk.getInstance(context);
         this.sdk.getSettings().setVerboseLogging(BuildConfig.DEBUG);
@@ -293,7 +290,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         if (this._isFreeMrecLoading) return;
         _isFreeMrecLoaded = false;
 
-        mFreeMrecAdViews = new MaxAdView(adsId, MaxAdFormat.MREC, getCurrentActivity().getApplicationContext());
+        mFreeMrecAdViews = new MaxAdView(adsId, MaxAdFormat.MREC);
         mFreeMrecAdViews.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -507,7 +504,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     void InitVideoRewardAds(Activity activity) {
 //        String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
         String videoRewardKey = _rewardAdId;
-        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, getCurrentActivity().getApplicationContext());
+        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey);
 
         mRewardedAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
@@ -611,23 +608,29 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             return;
         }
         if (isFirstLoad && _apsVideoRewardId != null && !_apsVideoRewardId.equals("")) {
-            _maxAmazonAdsService.loadRewardAd(_apsVideoRewardId, new DTBAdCallback() {
-                @Override
-                public void onFailure(@NonNull AdError adError) {
-                    Log.d(TAG, "APS load video reward onFailure : " + adError.getMessage());
-                    mRewardedAd.setLocalExtraParameter("amazon_ad_error", adError);
-                    mRewardedAd.loadAd();
-                }
-
-                @Override
-                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
-                    Log.d(TAG, "APS load video reward onSuccess : " + dtbAdResponse.getImpressionUrl());
-                    mRewardedAd.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
-                    mRewardedAd.loadAd();
-                }
-            });
+//            _maxAmazonAdsService.loadRewardAd(_apsVideoRewardId, new DTBAdCallback() {
+//                @Override
+//                public void onFailure(@NonNull AdError adError) {
+//                    Log.d(TAG, "APS load video reward onFailure : " + adError.getMessage());
+//                    mRewardedAd.setLocalExtraParameter("amazon_ad_error", adError);
+//                    mRewardedAd.loadAd();
+//                }
+//
+//                @Override
+//                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
+//                    Log.d(TAG, "APS load video reward onSuccess : " + dtbAdResponse.getImpressionUrl());
+//                    mRewardedAd.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
+//                    mRewardedAd.loadAd();
+//                }
+//            });
         } else {
-            mRewardedAd.loadAd();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    // ⇢ background work here
+                    mRewardedAd.loadAd();
+                }
+            }).start();
         }
     }
 
@@ -635,7 +638,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 //        String interKey = activity.getResources().getString(R.string.applovin_inter_key);
         Log.d(TAG, "createInterstitialAd: " + _interAdId);
 
-        mInterstitialAd = new MaxInterstitialAd(_interAdId, activity);
+        mInterstitialAd = new MaxInterstitialAd(_interAdId);
         mInterstitialAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -735,23 +738,29 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             return;
         }
         if (isFirstLoad && _apsInterId != null && !_apsInterId.equals("")) {
-            _maxAmazonAdsService.loadInterAd(_apsInterId, new DTBAdCallback() {
-                @Override
-                public void onFailure(@NonNull AdError adError) {
-                    Log.d(TAG, "APS load inter onFailure : " + adError.getMessage());
-                    mInterstitialAd.setLocalExtraParameter("amazon_ad_error", adError);
-                    mInterstitialAd.loadAd();
-                }
-
-                @Override
-                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
-                    Log.d(TAG, "APS load inter onSuccess : " + dtbAdResponse.getImpressionUrl());
-                    mInterstitialAd.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
-                    mInterstitialAd.loadAd();
-                }
-            });
+//            _maxAmazonAdsService.loadInterAd(_apsInterId, new DTBAdCallback() {
+//                @Override
+//                public void onFailure(@NonNull AdError adError) {
+//                    Log.d(TAG, "APS load inter onFailure : " + adError.getMessage());
+//                    mInterstitialAd.setLocalExtraParameter("amazon_ad_error", adError);
+//                    mInterstitialAd.loadAd();
+//                }
+//
+//                @Override
+//                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
+//                    Log.d(TAG, "APS load inter onSuccess : " + dtbAdResponse.getImpressionUrl());
+//                    mInterstitialAd.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
+//                    mInterstitialAd.loadAd();
+//                }
+//            });
         } else {
-            mInterstitialAd.loadAd();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    // ⇢ background work here
+                    mInterstitialAd.loadAd();
+                }
+            }).start();
         }
     }
 
@@ -786,7 +795,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 //        String mrecKey = activity.getResources().getString(R.string.applovin_mrec_ads_key);
         Log.d(TAG, "LoadRectBannerApplovin: bannerKey" + _mrecAdId);
 
-        rectAdView = new MaxAdView(_mrecAdId, MaxAdFormat.MREC, activity.getApplicationContext());
+        rectAdView = new MaxAdView(_mrecAdId, MaxAdFormat.MREC);
         rectAdView.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -863,23 +872,23 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         rectAdView.stopAutoRefresh();
 
         if (_apsEnable && _apsMRECId != null && !_apsMRECId.equals("")) {
-            _maxAmazonAdsService.loadMRECAd(_apsMRECId, new DTBAdCallback() {
-                @Override
-                public void onFailure(@NonNull AdError adError) {
-                    // 'adView' is your instance of MaxAdView
-                    rectAdView.setLocalExtraParameter("amazon_ad_error", adError);
-                    rectAdView.loadAd();
-                    isMRECLoading = true;
-                }
-
-                @Override
-                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
-                    // 'adView' is your instance of MaxAdView
-                    rectAdView.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
-                    rectAdView.loadAd();
-                    isMRECLoading = true;
-                }
-            });
+//            _maxAmazonAdsService.loadMRECAd(_apsMRECId, new DTBAdCallback() {
+//                @Override
+//                public void onFailure(@NonNull AdError adError) {
+//                    // 'adView' is your instance of MaxAdView
+//                    rectAdView.setLocalExtraParameter("amazon_ad_error", adError);
+//                    rectAdView.loadAd();
+//                    isMRECLoading = true;
+//                }
+//
+//                @Override
+//                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
+//                    // 'adView' is your instance of MaxAdView
+//                    rectAdView.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
+//                    rectAdView.loadAd();
+//                    isMRECLoading = true;
+//                }
+//            });
         } else {
             // Load the ad
             rectAdView.loadAd();
@@ -903,7 +912,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 //        String bannerKey = activity.getResources().getString(R.string.applovin_banner_key);
         Log.d(TAG, "Load Banner: " + _bannerAdId);
 
-        bannerAdView = new MaxAdView(_bannerAdId, activity.getApplicationContext());
+        bannerAdView = new MaxAdView(_bannerAdId);
         bannerAdView.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -986,25 +995,25 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         }
 
         if (_apsEnable && _apsBannerId != null && !_apsBannerId.equals("")) {
-            _maxAmazonAdsService.loadBannerAd(activity, _apsBannerId, new DTBAdCallback() {
-                @Override
-                public void onFailure(@NonNull AdError adError) {
-                    Log.d(TAG, "APS onFailure " + adError.getMessage());
-                    // 'adView' is your instance of MaxAdView
-                    bannerAdView.setLocalExtraParameter("amazon_ad_error", adError);
-                    bannerAdView.loadAd();
-                    _isBannerLoading = true;
-                }
-
-                @Override
-                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
-                    Log.d(TAG, "APS onSuccess " + dtbAdResponse.getImpressionUrl());
-                    // 'adView' is your instance of MaxAdView
-                    bannerAdView.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
-                    bannerAdView.loadAd();
-                    _isBannerLoading = true;
-                }
-            });
+//            _maxAmazonAdsService.loadBannerAd(activity, _apsBannerId, new DTBAdCallback() {
+//                @Override
+//                public void onFailure(@NonNull AdError adError) {
+//                    Log.d(TAG, "APS onFailure " + adError.getMessage());
+//                    // 'adView' is your instance of MaxAdView
+//                    bannerAdView.setLocalExtraParameter("amazon_ad_error", adError);
+//                    bannerAdView.loadAd();
+//                    _isBannerLoading = true;
+//                }
+//
+//                @Override
+//                public void onSuccess(@NonNull DTBAdResponse dtbAdResponse) {
+//                    Log.d(TAG, "APS onSuccess " + dtbAdResponse.getImpressionUrl());
+//                    // 'adView' is your instance of MaxAdView
+//                    bannerAdView.setLocalExtraParameter("amazon_ad_response", dtbAdResponse);
+//                    bannerAdView.loadAd();
+//                    _isBannerLoading = true;
+//                }
+//            });
         } else {
             // Load the ad
             bannerAdView.loadAd();
@@ -1069,7 +1078,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     public void ShowReward(int requestCode) {
         if (IsRewardReady()) {
             mCurrentVideoRewardRequestCode = requestCode;
-            mRewardedAd.showAd();
+            mRewardedAd.showAd(getCurrentActivity());
         } else {
             Log.e(TAG, "ShowVideo Applovin: FAILEDDDDDDDDDDDDD");
         }
@@ -1092,7 +1101,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         //show resume ads
         if (requestCode == RESUME_INTER_ADS) {
             if (IsInterReady()) {
-                mInterstitialAd.showAd();
+                mInterstitialAd.showAd(getCurrentActivity());
             }
             Log.d(TAG, "ShowInter: check 1 ");
             return;
@@ -1109,7 +1118,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             isClickToAds = false;
             Log.d(TAG, "ShowInter: check 3 ");
             mCurrentInterRequestCode = requestCode;
-            mInterstitialAd.showAd();
+            mInterstitialAd.showAd(getCurrentActivity());
 
         } else {
             Log.d(TAG, "ShowInter: check 4 ");
@@ -1411,7 +1420,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     @Override
     public void LoadOpenAppAds(Activity activity) {
         Log.d(TAG, "OpenAppAds " + _openAdsId);
-        appOpenAd = new MaxAppOpenAd(_openAdsId, activity.getApplicationContext());
+        appOpenAd = new MaxAppOpenAd(_openAdsId);
 
         appOpenAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
