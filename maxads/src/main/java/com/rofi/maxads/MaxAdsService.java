@@ -413,25 +413,28 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 adView.setRotation(0.0F);
                 adView.setTranslationX(0.0F);
 
+                MaxAdsService.Insets insets = MaxAdsService.getSafeInsets();
+                int marginLeft = insets.left;
+                int marginRight = insets.right;
+
+                int marginTop = insets.top;
+                int marginBottom = insets.bottom;
+
                 if ("centered".equalsIgnoreCase(adViewPosition)) {
                     gravity = Gravity.CENTER;
                 } else {
                     if (adViewPosition.contains("top")) {
                         gravity = Gravity.TOP;
+                        marginTop += adViewOffsetY;
                     } else if (adViewPosition.contains("bottom")) {
                         gravity = Gravity.BOTTOM;
+                        marginBottom += adViewOffsetY;
                     }
-
                     if (adViewPosition.contains("center")) {
                         gravity |= Gravity.CENTER_HORIZONTAL;
                     }
                 }
 
-                MaxAdsService.Insets insets = MaxAdsService.getSafeInsets();
-                int marginLeft = insets.left;
-                int marginRight = insets.right;
-                int marginTop = insets.top + adViewOffsetY;
-                int marginBottom = insets.bottom;
                 RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) mFreeMrecAdViews.getLayoutParams();
                 params.height = heightPx;
                 params.width = widthPx;
@@ -504,7 +507,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     void InitVideoRewardAds(Activity activity) {
 //        String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
         String videoRewardKey = _rewardAdId;
-        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey);
+        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, getCurrentActivity().getApplicationContext());
 
         mRewardedAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
@@ -638,7 +641,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 //        String interKey = activity.getResources().getString(R.string.applovin_inter_key);
         Log.d(TAG, "createInterstitialAd: " + _interAdId);
 
-        mInterstitialAd = new MaxInterstitialAd(_interAdId);
+        mInterstitialAd = new MaxInterstitialAd(_interAdId, getCurrentActivity().getApplicationContext());
         mInterstitialAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -1532,6 +1535,16 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     @Override
     public boolean isMrecLoaded() {
         return isMRECLoaded;
+    }
+
+    @Override
+    public boolean canShowResumeAds() {
+        if (_isDisableResumeAds) return false;
+        if (_isDisableInterAds) return false;
+        if (isFullscreenAdsShowing) return false;
+        if (blockAutoShowInterCount > 0) return false;
+        if (!IsInterReady()) return false;
+        return true;
     }
 
     //ads callbacks

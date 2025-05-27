@@ -59,4 +59,6 @@ public interface IAdsService {
     void EnableInterAds();
 
     boolean isMrecLoaded();
+
+    boolean canShowResumeAds();
 }
