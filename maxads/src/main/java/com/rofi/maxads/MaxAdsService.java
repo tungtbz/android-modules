@@ -113,6 +113,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
     private int _bannerPosition;
     private int _mrecPosition;
+    private int _mrecBgColor;
 
     private Activity _activity;
     private int blockAutoShowInterCount;
@@ -160,32 +161,39 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
         _bannerPosition = Integer.parseInt(args[7]);
         _mrecPosition = Integer.parseInt(args[8]);
+        _mrecBgColor = Color.WHITE;
 
         if (args.length >= 10) _openAdsId = args[9];
-
-        _apsEnable = false;
-        //aps
-        if (args.length >= 13) {
-
-            _apsAppId = args[10];
-            _apsBannerId = args[11];
-            _apsMRECId = args[12];
-            _apsInterId = args[13];
-            _apsVideoRewardId = args[14];
-
-            if (_apsAppId != null && !_apsAppId.equals("")) {
-                _apsEnable = true;
-                Log.d(TAG, "APS _apsAppId:" + _apsAppId);
-
-                Log.d(TAG, "APS _apsBannerId:" + _apsBannerId);
-                Log.d(TAG, "APS _apsInterId:" + _apsInterId);
-                Log.d(TAG, "APS _apsMRECId:" + _apsMRECId);
-                Log.d(TAG, "APS _apsVideoRewardId:" + _apsVideoRewardId);
-
-//                _maxAmazonAdsService = new AmazonAdsService();
-//                _maxAmazonAdsService.Init(activity, _apsAppId);
+        if (args.length >= 11) {
+            try {
+                _mrecBgColor = Color.parseColor(args[10]);
+            } catch (IllegalArgumentException e) {
+                _mrecBgColor = Color.BLACK;
             }
         }
+        _apsEnable = false;
+        //aps
+//        if (args.length >= 13) {
+//
+//            _apsAppId = args[10];
+//            _apsBannerId = args[11];
+//            _apsMRECId = args[12];
+//            _apsInterId = args[13];
+//            _apsVideoRewardId = args[14];
+//
+//            if (_apsAppId != null && !_apsAppId.equals("")) {
+//                _apsEnable = true;
+//                Log.d(TAG, "APS _apsAppId:" + _apsAppId);
+//
+//                Log.d(TAG, "APS _apsBannerId:" + _apsBannerId);
+//                Log.d(TAG, "APS _apsInterId:" + _apsInterId);
+//                Log.d(TAG, "APS _apsMRECId:" + _apsMRECId);
+//                Log.d(TAG, "APS _apsVideoRewardId:" + _apsVideoRewardId);
+//
+////                _maxAmazonAdsService = new AmazonAdsService();
+////                _maxAmazonAdsService.Init(activity, _apsAppId);
+//            }
+//        }
 
         if (sdkKey == null || sdkKey.isEmpty()) {
             Log.d(TAG, "sdkKey is empty");
@@ -422,6 +430,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
                 if ("centered".equalsIgnoreCase(adViewPosition)) {
                     gravity = Gravity.CENTER;
+                    marginTop += adViewOffsetY;
                 } else {
                     if (adViewPosition.contains("top")) {
                         gravity = Gravity.TOP;
@@ -861,11 +870,14 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         // MREC width and height are 300 and 250 respectively, on phones and tablets
         int widthPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 300);
         int heightPx = AppLovinSdkUtils.dpToPx(activity.getApplicationContext(), 250);
+        Log.d(TAG, "MREC heightPx : " + heightPx);
+
         int gravity = position == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
         FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(widthPx, heightPx, gravity);
         layoutParams.setMargins(0, 0, 0, 0);
         rectAdView.setLayoutParams(layoutParams);
         rectAdView.setVisibility(View.GONE);
+        rectAdView.setBackgroundColor(_mrecBgColor);
 
         ViewGroup rootView = activity.findViewById(android.R.id.content);
         rootView.addView(rectAdView);
@@ -977,13 +989,37 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight();
         int heightPx = AppLovinSdkUtils.dpToPx(activity, heightDp);
         bannerAdView.setExtraParameter("adaptive_banner", "true");
-        bannerAdView.setBackgroundColor(Color.TRANSPARENT);
+        bannerAdView.setBackgroundColor(Color.WHITE);
 
-        int gravity = 0;
-        if (position == Constants.POSITION_CENTER_TOP)
-            gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        else gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-        bannerAdView.setLayoutParams(new FrameLayout.LayoutParams(width, heightPx, gravity));
+        // --- BẮT ĐẦU PHẦN SỬA ĐỔI ---
+
+        // Tạo đối tượng LayoutParams với chiều rộng và chiều cao
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(width, heightPx);
+
+        // Thiết lập vị trí (gravity) dựa trên biến position
+        if (position == Constants.POSITION_CENTER_TOP) {
+            layoutParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        } else {
+            layoutParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        }
+
+        // Chuyển đổi 2dp thành pixels cho khoảng trắng trên và dưới
+        int verticalMarginPx = AppLovinSdkUtils.dpToPx(activity, 2);
+
+        // Đặt margin (trái, trên, phải, dưới)
+        layoutParams.setMargins(0, verticalMarginPx, 0, verticalMarginPx);
+
+        // Áp dụng các tham số layout đã cấu hình cho bannerAdView
+        bannerAdView.setLayoutParams(layoutParams);
+
+        // --- KẾT THÚC PHẦN SỬA ĐỔI ---
+
+//  OLD-CODE
+//        int gravity = 0;
+//        if (position == Constants.POSITION_CENTER_TOP)
+//            gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+//        else gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+//        bannerAdView.setLayoutParams(new FrameLayout.LayoutParams(width, heightPx, gravity));
 
         ViewGroup rootView = activity.findViewById(android.R.id.content);
         rootView.addView(bannerAdView);
