@@ -42,6 +42,7 @@ import com.google.android.gms.ads.appopen.AppOpenAd;
 import com.google.android.gms.ads.initialization.AdapterStatus;
 import com.google.android.ump.ConsentInformation;
 import com.rofi.base.Constants;
+import com.rofi.base.ThreadUltils;
 import com.unity3d.player.UnityPlayer;
 
 import java.util.Date;
@@ -80,6 +81,11 @@ public class AdmobHelper {
     boolean bannerAdLoading;
     boolean mrecAdLoaded;
     boolean bannerAdLoaded;
+    int blockAOACount;
+
+    private boolean _isDisableResumeAds;
+    private boolean aoaBlocker;
+
     //    private IAdmobAdListener adListener;
     private ConsentInformation consentInformation;
     // Use an atomic boolean to initialize the Google Mobile Ads SDK and load ads once.
@@ -90,6 +96,10 @@ public class AdmobHelper {
         _appOpenAdsId = args[0];
 
 //        this.adListener = adListener;
+    }
+
+    public AdmobHelper() {
+        blockAOACount = 0;
     }
 
     public void initBanner(Activity activity, String id, int position) {
@@ -554,7 +564,7 @@ public class AdmobHelper {
      */
     public void loadAd(Activity activity) {
         // Do not load ad if there is an unused ad or one is already loading.
-        if (_isLoadingAd || isAdAvailable()) {
+        if (_appOpenAdsId == null || _isLoadingAd || isAdAvailable()) {
             return;
         }
 
@@ -562,7 +572,7 @@ public class AdmobHelper {
         Log.d(TAG, "Start Load ads.");
         AdRequest request = new AdRequest.Builder().build();
 
-        AppOpenAd.load(activity.getApplicationContext(), _appOpenAdsId, request, new AppOpenAd.AppOpenAdLoadCallback() {
+        AppOpenAd.load(getCurrentActivity().getApplicationContext(), _appOpenAdsId, request, new AppOpenAd.AppOpenAdLoadCallback() {
             @Override
             public void onAdLoaded(AppOpenAd appOpenAd) {
                 Log.d(TAG, "App Open Ads was loaded.");
@@ -590,6 +600,11 @@ public class AdmobHelper {
                 loadTime = (new Date()).getTime();
 
                 Log.d(TAG, "Banner adapter class name: " + Objects.requireNonNull(_appOpenAd.getResponseInfo()).getMediationAdapterClassName());
+
+                if (needShowAOAAfterLoad) {
+                    showAppOpenAds(getCurrentActivity());
+                    needShowAOAAfterLoad = false;
+                }
             }
 
             @Override
@@ -617,6 +632,8 @@ public class AdmobHelper {
         return (dateDifference < (numMilliSecondsPerHour * numHours));
     }
 
+    private boolean needShowAOAAfterLoad;
+
     public void showAppOpenAds(Activity activity) {
         if (_isShowingAd) {
             Log.d(TAG, "The app open ad is already showing.");
@@ -625,6 +642,13 @@ public class AdmobHelper {
 
         if (!isAdAvailable()) {
             Log.d(TAG, "The app open ad is not ready");
+//            needShowAOAAfterLoad = true;
+            loadAd(getCurrentActivity());
+            return;
+        }
+
+        if (aoaBlocker) {
+            Log.d(TAG, "AOA IS BLOCKED!");
             return;
         }
 
@@ -644,6 +668,12 @@ public class AdmobHelper {
                 _appOpenAd = null;
                 _isShowingAd = false;
                 adsEventCallback.onAdDismissedFullScreenContent(0);
+                loadAd(getCurrentActivity());
+
+                ThreadUltils.startTask(() -> {
+                    Log.d(TAG, "Reset AOA Time-Block");
+                    aoaBlocker = false;
+                }, 1 * 1000L);
             }
 
             @Override
@@ -653,6 +683,7 @@ public class AdmobHelper {
                 Log.d(TAG, adError.getMessage());
                 _appOpenAd = null;
                 _isShowingAd = false;
+                loadAd(getCurrentActivity());
             }
 
             @Override
@@ -664,6 +695,7 @@ public class AdmobHelper {
             public void onAdShowedFullScreenContent() {
                 // Called when fullscreen content is shown.
                 Log.d(TAG, "Ad showed fullscreen content.");
+                aoaBlocker = true;
                 if (adsEventCallback != null)
                     adsEventCallback.onAdDisplayFullScreenContent(0);
             }
@@ -671,6 +703,28 @@ public class AdmobHelper {
 
         _isShowingAd = true;
         _appOpenAd.show(activity);
+    }
+
+    public boolean canShowAOA() {
+        if (_isDisableResumeAds || blockAOACount > 0) return false;
+        return true;
+    }
+
+    public void DisableAOA() {
+        _isDisableResumeAds = true;
+    }
+
+    public void EnableAOA() {
+        _isDisableResumeAds = false;
+    }
+
+    public void IncreaseBlockAOA() {
+        blockAOACount += 1;
+    }
+
+    public void DecreaseBlockAOA() {
+        blockAOACount -= 1;
+        if (blockAOACount < 0) blockAOACount = 0;
     }
 
     private void initializeMobileAdsSdk(Activity activity) {

@@ -7,6 +7,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -123,6 +124,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     private long _finishInterAdsTime = 0;
     int coolDownShowInterInSecond;
     boolean isFullscreenAdsShowing;
+    boolean isPauseCountDown;
     boolean isMRECLoaded;
     boolean isMRECLoading;
 
@@ -338,6 +340,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             public void onAdClicked(MaxAd ad) {
                 Log.d(TAG, "Free MREC onMRECAdClicked: ");
 //                AnalyticManager.getInstance().ShowAds(2);
+                _adsAdsEventListener.onAdClicked(ad.getFormat().getLabel());
                 isClickToAds = true;
             }
 
@@ -776,6 +779,26 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         }
     }
 
+    public void ResetCoolDownShowInter() {
+        UnPauseCountDownShowInter();
+
+        if (isCoolDownShowInter) {
+            if (timer != null)
+                timer.cancel();
+
+            coolDownShowInterInSecond = FirebaseRemoteConfigService.getInstance().GetInt(Constants.ADS_INTERVAL);
+            RunCountDownToShowInter();
+        }
+    }
+
+    public void PauseCountDownShowInter() {
+        isPauseCountDown = true;
+    }
+
+    public void UnPauseCountDownShowInter() {
+        isPauseCountDown = false;
+    }
+
     private void RunCountDownToShowInter() {
         isCoolDownShowInter = true;
         timer = new Timer();
@@ -793,6 +816,11 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
                 if (isFullscreenAdsShowing) {
                     Log.d(TAG, "RunCountDownToShowInter  isShowingFullscreenAds --> skip");
+                    return;
+                }
+
+                if (isPauseCountDown) {
+                    Log.d(TAG, "RunCountDownToShowInter  isPauseCountDown --> skip");
                     return;
                 }
 
@@ -852,6 +880,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 Log.d(TAG, "onMRECAdClicked: ");
 //                AnalyticManager.getInstance().ShowAds(2);
                 isClickToAds = true;
+                _adsAdsEventListener.onAdClicked(ad.getFormat().getLabel());
             }
 
             @Override
@@ -1007,7 +1036,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         int verticalMarginPx = AppLovinSdkUtils.dpToPx(activity, 2);
 
         // Đặt margin (trái, trên, phải, dưới)
-        layoutParams.setMargins(0, verticalMarginPx, 0, verticalMarginPx);
+        layoutParams.setMargins(0, 0, 0, 0);
 
         // Áp dụng các tham số layout đã cấu hình cho bannerAdView
         bannerAdView.setLayoutParams(layoutParams);
@@ -1505,8 +1534,9 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             }
 
             @Override
-            public void onAdClicked(MaxAd maxAd) {
+            public void onAdClicked(MaxAd ad) {
                 isClickToAds = true;
+                _adsAdsEventListener.onAdClicked(ad.getFormat().getLabel());
             }
 
             @Override
@@ -1581,6 +1611,14 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         if (blockAutoShowInterCount > 0) return false;
         if (!IsInterReady()) return false;
         return true;
+    }
+
+    public boolean IsFullScreenAdsShowing() {
+        return isFullscreenAdsShowing;
+    }
+
+    public boolean IsCoolDownShowInter() {
+        return isCoolDownShowInter;
     }
 
     //ads callbacks

@@ -20,19 +20,27 @@ public final class GoogleMobileAdsConsentManager {
     private static GoogleMobileAdsConsentManager instance;
     private final ConsentInformation consentInformation;
     private boolean isConsentFlowFinished;
+    private boolean isBypass;
 
     public boolean IsConsentFlowFinished() {
         return isConsentFlowFinished;
     }
 
+    public boolean IsByPass() {
+        return isBypass;
+    }
+
     public void bypassConsentFlow() {
         isConsentFlowFinished = true;
+        isBypass = true;
     }
 
     /**
      * Private constructor
      */
     private GoogleMobileAdsConsentManager(Context context) {
+        isBypass = false;
+        isConsentFlowFinished = false;
         this.consentInformation = UserMessagingPlatform.getConsentInformation(context);
     }
 
