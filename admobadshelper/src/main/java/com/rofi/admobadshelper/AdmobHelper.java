@@ -7,6 +7,7 @@ import android.graphics.Insets;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
@@ -52,23 +53,41 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AdmobHelper {
-    private static AdmobHelper mInstance = null;
+    // Constants for ad positions
+    public static final int POSITION_TOP_CENTER = 0;
+    public static final int POSITION_BOTTOM_CENTER = 1;
+    public static final int POSITION_TOP_LEFT = 2;
+    public static final int POSITION_TOP_RIGHT = 3;
+    public static final int POSITION_BOTTOM_LEFT = 4;
+    public static final int POSITION_BOTTOM_RIGHT = 5;
+    public static final int POSITION_CENTER = 6;
+    public static final int POSITION_CUSTOM = -1;
+    
+    private static volatile AdmobHelper mInstance = null;
+    private static final Object sLock = new Object();
     private final String TAG = AdmobHelper.class.toString();
-    private AppOpenAd _appOpenAd = null;
-    private boolean _isLoadingAd = false;
-    private boolean _isShowingAd = false;
-    private long loadTime = 0;
-    private int consentCode = -1;
+    
+    // Thread-safe variables using volatile
+    private volatile AppOpenAd _appOpenAd = null;
+    private volatile boolean _isLoadingAd = false;
+    private volatile boolean _isShowingAd = false;
+    private volatile long loadTime = 0;
+    private volatile int consentCode = -1;
 
-    private IAdmobAdListener adsEventCallback;
+    private volatile IAdmobAdListener adsEventCallback;
 
-    AdView mrecAdView;
+    // UI components - should only be accessed from UI thread
+    private volatile AdView mrecAdView;
+    private volatile AdView cBannerView;
 
-    AdView cBannerView;
-
+    // Thread-safe singleton pattern
     public static AdmobHelper getInstance() {
-        if (null == mInstance) {
-            mInstance = new AdmobHelper();
+        if (mInstance == null) {
+            synchronized (sLock) {
+                if (mInstance == null) {
+                    mInstance = new AdmobHelper();
+                }
+            }
         }
         return mInstance;
     }
@@ -77,14 +96,18 @@ public class AdmobHelper {
     String _cBannerId;
     int bannerPosition;
     String _mrecAdsId;
-    boolean mrecAdLoading;
-    boolean bannerAdLoading;
-    boolean mrecAdLoaded;
-    boolean bannerAdLoaded;
-    int blockAOACount;
+    
+    // Thread-safe boolean flags using volatile
+    private volatile boolean mrecAdLoading;
+    private volatile boolean bannerAdLoading;
+    private volatile boolean mrecAdLoaded;
+    private volatile boolean bannerAdLoaded;
+    
+    // Thread-safe counters using volatile
+    private volatile int blockAOACount;
 
-    private boolean _isDisableResumeAds;
-    private boolean aoaBlocker;
+    private volatile boolean _isDisableResumeAds;
+    private volatile boolean aoaBlocker;
 
     //    private IAdmobAdListener adListener;
     private ConsentInformation consentInformation;
@@ -167,7 +190,7 @@ public class AdmobHelper {
         rootView.addView(cBannerView);
     }
 
-    Handler handler = new Handler();
+    Handler handler = new Handler(Looper.getMainLooper()); // Thread-safe handler
 
     protected static class Insets {
         int left;
@@ -180,19 +203,31 @@ public class AdmobHelper {
     }
 
     static void runSafelyOnUiThread(Activity activity, final Runnable runner) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Log.w("AdmobHelper", "Activity is null or finishing, skipping UI operation");
+            return;
+        }
+        
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 try {
-                    runner.run();
+                    if (!activity.isFinishing() && !activity.isDestroyed()) {
+                        runner.run();
+                    }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Log.e("AdmobHelper", "Error in UI thread operation", e);
                 }
             }
         });
     }
 
     static Activity getCurrentActivity() {
-        return UnityPlayer.currentActivity;
+        Activity activity = UnityPlayer.currentActivity;
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Log.w("AdmobHelper", "Current activity is null or invalid");
+            return null;
+        }
+        return activity;
     }
 
     public void RunAutoRefreshBanner(int refreshTime) {
@@ -200,13 +235,18 @@ public class AdmobHelper {
 
         Runnable r = new Runnable() {
             public void run() {
-                runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.d(TAG, "Manual Load Banner refresh Time" + refreshTime);
-                        loadBanner(false);
-                    }
-                });
+                Activity currentActivity = getCurrentActivity();
+                if (currentActivity != null) {
+                    runSafelyOnUiThread(currentActivity, new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.d(TAG, "Manual Load Banner refresh Time" + refreshTime);
+                            loadBanner(false);
+                        }
+                    });
+                } else {
+                    Log.w(TAG, "Cannot refresh banner - no valid activity");
+                }
 
                 handler.postDelayed(this, refreshTime * 1000L);
             }
@@ -216,12 +256,15 @@ public class AdmobHelper {
     }
 
     public void ForceLoadBanner() {
-        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
-            @Override
-            public void run() {
-                loadBanner(true);
-            }
-        });
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            runSafelyOnUiThread(currentActivity, new Runnable() {
+                @Override
+                public void run() {
+                    loadBanner(true);
+                }
+            });
+        }
     }
 
     public void StopRefresh() {
@@ -229,40 +272,60 @@ public class AdmobHelper {
     }
 
     private void loadBanner(boolean isForceLoad) {
-        if (_cBannerId == null) return;
-        if (cBannerView == null) return;
+        if (_cBannerId == null || cBannerView == null) return;
 
-        if (!isForceLoad && bannerAdLoading) return;
-        if (!isForceLoad && bannerAdLoaded) return;
+        synchronized (this) {
+            if (!isForceLoad && bannerAdLoading) return;
+            if (!isForceLoad && bannerAdLoaded) return;
+            bannerAdLoading = true;
+        }
 
-        // Create an extra parameter that aligns the bottom of the expanded ad to
-        // the bottom of the bannerView.
-        Bundle extras = new Bundle();
-        extras.putString("collapsible", bannerPosition == Constants.POSITION_CENTER_TOP ? "top" : "bottom");
+        // Ensure UI operations run on main thread
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            runSafelyOnUiThread(currentActivity, () -> {
+                // Create an extra parameter that aligns the bottom of the expanded ad to
+                // the bottom of the bannerView.
+                Bundle extras = new Bundle();
+                extras.putString("collapsible", bannerPosition == Constants.POSITION_CENTER_TOP ? "top" : "bottom");
 
-//        extras.putString("collapsible_request_id", UUID.randomUUID().toString());
+                AdRequest adRequest = new AdRequest.Builder().addNetworkExtrasBundle(AdMobAdapter.class, extras).build();
 
-        AdRequest adRequest = new AdRequest.Builder().addNetworkExtrasBundle(AdMobAdapter.class, extras).build();
-
-        cBannerView.loadAd(adRequest);
-        Log.d(TAG, "Loading Banner");
-
-        bannerAdLoading = true;
+                if (cBannerView != null) {
+                    cBannerView.loadAd(adRequest);
+                    Log.d(TAG, "Loading Banner");
+                } else {
+                    bannerAdLoading = false; // Reset flag if view is null
+                }
+            });
+        } else {
+            bannerAdLoading = false; // Reset flag if no valid activity
+        }
     }
 
     public void showBanner() {
-        if (bannerAdLoaded && cBannerView.getVisibility() == View.GONE) {
-            Log.d(TAG, "showBanner");
-            cBannerView.resume();
-            cBannerView.setVisibility(View.VISIBLE);
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            runSafelyOnUiThread(currentActivity, () -> {
+                if (bannerAdLoaded && cBannerView != null && cBannerView.getVisibility() == View.GONE) {
+                    Log.d(TAG, "showBanner");
+                    cBannerView.resume();
+                    cBannerView.setVisibility(View.VISIBLE);
+                }
+            });
         }
     }
 
     public void HideBanner() {
-        if (bannerAdLoaded && cBannerView.getVisibility() == View.VISIBLE) {
-            Log.d(TAG, "HideBanner");
-            cBannerView.pause();
-            cBannerView.setVisibility(View.GONE);
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            runSafelyOnUiThread(currentActivity, () -> {
+                if (bannerAdLoaded && cBannerView != null && cBannerView.getVisibility() == View.VISIBLE) {
+                    Log.d(TAG, "HideBanner");
+                    cBannerView.pause();
+                    cBannerView.setVisibility(View.GONE);
+                }
+            });
         }
     }
 
@@ -285,14 +348,19 @@ public class AdmobHelper {
 //    private int mVerticalOffset;
 
     private void updateMrecPosition(int positionCode, int topPadding) {
-        if (this.mrecAdView == null)
-            return;
-        AdmobHelper.getCurrentActivity().runOnUiThread(new Runnable() {
-            public void run() {
-                FrameLayout.LayoutParams layoutParams = AdmobHelper.this.getLayoutParams(positionCode, topPadding);
-                AdmobHelper.this.mrecAdView.setLayoutParams((ViewGroup.LayoutParams) layoutParams);
-            }
-        });
+        if (this.mrecAdView == null) return;
+        
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            runSafelyOnUiThread(currentActivity, new Runnable() {
+                public void run() {
+                    if (mrecAdView != null) { // Double check after UI thread switch
+                        FrameLayout.LayoutParams layoutParams = getLayoutParams(positionCode, topPadding);
+                        mrecAdView.setLayoutParams(layoutParams);
+                    }
+                }
+            });
+        }
     }
 
     protected FrameLayout.LayoutParams getLayoutParams(int positionCode, int topPadding) {
@@ -363,36 +431,29 @@ public class AdmobHelper {
     }
 
     private static int getLayoutGravityForPositionCode(int positionCode) {
-        int gravity;
         switch (positionCode) {
-            case 0:
-                gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-                return gravity;
-            case 1:
-                gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-                return gravity;
-            case 2:
-                gravity = 51;//top left
-                return gravity;
-            case 3:
-                gravity = 53;//top right
-                return gravity;
-            case 4:
-                gravity = 83;//bot left
-                return gravity;
-            case 5:
-                gravity = 85;//bot right
-                return gravity;
-            case 6:
-                gravity = Gravity.CENTER;
-                return gravity;
-            case -1:
-
+            case POSITION_TOP_CENTER:
+                return Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            case POSITION_BOTTOM_CENTER:
+                return Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+            case POSITION_TOP_LEFT:
+                return Gravity.TOP | Gravity.START;
+            case POSITION_TOP_RIGHT:
+                return Gravity.TOP | Gravity.END;
+            case POSITION_BOTTOM_LEFT:
+                return Gravity.BOTTOM | Gravity.START;
+            case POSITION_BOTTOM_RIGHT:
+                return Gravity.BOTTOM | Gravity.END;
+            case POSITION_CENTER:
+                return Gravity.CENTER;
+            case POSITION_CUSTOM:
+                return Gravity.TOP | Gravity.START; // Default for custom positioning
+            default:
+                throw new IllegalArgumentException("Invalid ad position code: " + positionCode);
         }
-        throw new IllegalArgumentException("Attempted to position ad with invalid ad position.");
     }
 
-    public void SetAdsCallback(IAdmobAdListener callback) {
+    public synchronized void SetAdsCallback(IAdmobAdListener callback) {
         adsEventCallback = callback;
     }
 
@@ -407,38 +468,50 @@ public class AdmobHelper {
     }
 
     public void loadMrec() {
-        AdmobHelper.getCurrentActivity().runOnUiThread(() -> {
-            if (mrecAdView != null) {
-                if (mrecAdLoading) return;
-                if (mrecAdLoaded) return;
-
-                mrecAdLoading = true;
-
-                AdRequest adRequest = new AdRequest.Builder().build();
-                mrecAdView.loadAd(adRequest);
-            } else {
-                Log.d(TAG, "loadMrec: NULLLLLLL");
-            }
-        });
+        synchronized (this) {
+            if (mrecAdLoading || mrecAdLoaded) return;
+            mrecAdLoading = true;
+        }
+        
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            runSafelyOnUiThread(currentActivity, () -> {
+                if (mrecAdView != null) {
+                    AdRequest adRequest = new AdRequest.Builder().build();
+                    mrecAdView.loadAd(adRequest);
+                } else {
+                    Log.d(TAG, "loadMrec: mrecAdView is null");
+                    mrecAdLoading = false; // Reset flag if view is null
+                }
+            });
+        } else {
+            Log.w(TAG, "Cannot load MREC - no valid activity");
+            mrecAdLoading = false; // Reset flag if no valid activity
+        }
     }
 
     public void ShowMrec() {
-        AdmobHelper.getCurrentActivity().runOnUiThread(() -> {
-            if (mrecAdView != null && mrecAdLoaded && mrecAdView.getVisibility() == View.GONE) {
-                mrecAdView.setVisibility(View.VISIBLE);
-                mrecAdView.resume();
-            }
-        });
-
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            runSafelyOnUiThread(currentActivity, () -> {
+                if (mrecAdView != null && mrecAdLoaded && mrecAdView.getVisibility() == View.GONE) {
+                    mrecAdView.setVisibility(View.VISIBLE);
+                    mrecAdView.resume();
+                }
+            });
+        }
     }
 
     public void HideMrec() {
-        AdmobHelper.getCurrentActivity().runOnUiThread(() -> {
-            if (mrecAdView != null && mrecAdView.getVisibility() == View.VISIBLE) {
-                mrecAdView.setVisibility(View.GONE);
-                mrecAdView.pause();
-            }
-        });
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            runSafelyOnUiThread(currentActivity, () -> {
+                if (mrecAdView != null && mrecAdView.getVisibility() == View.VISIBLE) {
+                    mrecAdView.setVisibility(View.GONE);
+                    mrecAdView.pause();
+                }
+            });
+        }
     }
 
     public void bypassConsentFlow(Activity activity) {
@@ -556,19 +629,22 @@ public class AdmobHelper {
 
         Log.d(TAG, "Ads on Paid Event " + "\nvalueMicros" + value + ", currencyCode: " + currencyCode + " ,precision: " + precision + " ,adUnitId: " + adUnitId + " ,adSourceName" + adSourceName);
 
-        adsEventCallback.onAdImpression(adFormat, adUnitId, adSourceName, value);
+        // Thread-safe callback invocation
+        IAdmobAdListener callback = adsEventCallback;
+        if (callback != null) {
+            callback.onAdImpression(adFormat, adUnitId, adSourceName, value);
+        }
     }
 
-    /**
-     * Request an ad.
-     */
     public void loadAd(Activity activity) {
-        // Do not load ad if there is an unused ad or one is already loading.
-        if (_appOpenAdsId == null || _isLoadingAd || isAdAvailable()) {
-            return;
+        // Thread-safe check with synchronization
+        synchronized (this) {
+            if (_appOpenAdsId == null || _isLoadingAd || isAdAvailable()) {
+                return;
+            }
+            _isLoadingAd = true;
         }
 
-        _isLoadingAd = true;
         Log.d(TAG, "Start Load ads.");
         AdRequest request = new AdRequest.Builder().build();
 
@@ -576,8 +652,12 @@ public class AdmobHelper {
             @Override
             public void onAdLoaded(AppOpenAd appOpenAd) {
                 Log.d(TAG, "App Open Ads was loaded.");
-                _isLoadingAd = false;
-                _appOpenAd = appOpenAd;
+                synchronized (AdmobHelper.this) {
+                    _isLoadingAd = false;
+                    _appOpenAd = appOpenAd;
+                    loadTime = (new Date()).getTime();
+                }
+                
                 _appOpenAd.setOnPaidEventListener(new OnPaidEventListener() {
                     @Override
                     public void onPaidEvent(AdValue adValue) {
@@ -597,8 +677,6 @@ public class AdmobHelper {
                     }
                 });
 
-                loadTime = (new Date()).getTime();
-
                 Log.d(TAG, "Banner adapter class name: " + Objects.requireNonNull(_appOpenAd.getResponseInfo()).getMediationAdapterClassName());
 
                 if (needShowAOAAfterLoad) {
@@ -611,7 +689,9 @@ public class AdmobHelper {
             public void onAdFailedToLoad(LoadAdError loadAdError) {
                 Log.d(TAG, "App open ad has failed to load.");
                 _isLoadingAd = false;
-                adsEventCallback.onAOAFailedToLoad();
+                if (adsEventCallback != null) {
+                    adsEventCallback.onAOAFailedToLoad();
+                }
             }
         });
     }
@@ -632,7 +712,7 @@ public class AdmobHelper {
         return (dateDifference < (numMilliSecondsPerHour * numHours));
     }
 
-    private boolean needShowAOAAfterLoad;
+    private volatile boolean needShowAOAAfterLoad;
 
     public void showAppOpenAds(Activity activity) {
         if (_isShowingAd) {
@@ -718,11 +798,11 @@ public class AdmobHelper {
         _isDisableResumeAds = false;
     }
 
-    public void IncreaseBlockAOA() {
+    public synchronized void IncreaseBlockAOA() {
         blockAOACount += 1;
     }
 
-    public void DecreaseBlockAOA() {
+    public synchronized void DecreaseBlockAOA() {
         blockAOACount -= 1;
         if (blockAOACount < 0) blockAOACount = 0;
     }
@@ -753,5 +833,58 @@ public class AdmobHelper {
 
             loadBanner(true);
         });
+    }
+
+    /**
+     * Cleanup method to be called when the helper is no longer needed
+     * Should be called in Activity's onDestroy()
+     */
+    public void cleanup() {
+        synchronized (this) {
+            // Stop any pending refresh operations
+            if (handler != null) {
+                handler.removeCallbacksAndMessages(null);
+            }
+            
+            // Clear ad references to prevent memory leaks
+            _appOpenAd = null;
+            
+            // Clear callbacks
+            adsEventCallback = null;
+            
+            // Reset states
+            _isLoadingAd = false;
+            _isShowingAd = false;
+            bannerAdLoading = false;
+            bannerAdLoaded = false;
+            mrecAdLoading = false;
+            mrecAdLoaded = false;
+            
+            Log.d(TAG, "AdmobHelper cleaned up");
+        }
+    }
+    
+    /**
+     * Pause ads when activity goes to background
+     */
+    public void onPause() {
+        if (cBannerView != null) {
+            cBannerView.pause();
+        }
+        if (mrecAdView != null) {
+            mrecAdView.pause();
+        }
+    }
+    
+    /**
+     * Resume ads when activity comes to foreground
+     */
+    public void onResume() {
+        if (cBannerView != null) {
+            cBannerView.resume();
+        }
+        if (mrecAdView != null) {
+            mrecAdView.resume();
+        }
     }
 }

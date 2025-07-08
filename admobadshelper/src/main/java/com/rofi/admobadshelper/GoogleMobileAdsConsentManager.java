@@ -17,10 +17,11 @@ import com.google.android.ump.UserMessagingPlatform;
  * This is an example and you can choose another consent management platform to capture consent.
  */
 public final class GoogleMobileAdsConsentManager {
-    private static GoogleMobileAdsConsentManager instance;
+    private static volatile GoogleMobileAdsConsentManager instance;
+    private static final Object LOCK = new Object();
     private final ConsentInformation consentInformation;
-    private boolean isConsentFlowFinished;
-    private boolean isBypass;
+    private volatile boolean isConsentFlowFinished;
+    private volatile boolean isBypass;
 
     public boolean IsConsentFlowFinished() {
         return isConsentFlowFinished;
@@ -45,13 +46,16 @@ public final class GoogleMobileAdsConsentManager {
     }
 
     /**
-     * Public constructor
+     * Thread-safe singleton implementation
      */
     public static GoogleMobileAdsConsentManager getInstance(Context context) {
         if (instance == null) {
-            instance = new GoogleMobileAdsConsentManager(context);
+            synchronized (LOCK) {
+                if (instance == null) {
+                    instance = new GoogleMobileAdsConsentManager(context);
+                }
+            }
         }
-
         return instance;
     }
 
