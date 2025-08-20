@@ -31,7 +31,7 @@ public class FirebaseAnalytic implements IAnalytic {
             );
 
             for (Map.Entry<String, Object> pair : mapEventData.entrySet()) {
-                System.out.format("key: %s, value: %s", pair.getKey(), pair.getValue().toString());
+//                System.out.format("key: %s, value: %s", pair.getKey(), pair.getValue().toString());
                 bundle.putString(pair.getKey(), pair.getValue().toString());
             }
         }

@@ -1,4 +1,4 @@
-package com.rofi.maxads;
+    package com.rofi.maxads;
 
 import static com.rofi.base.Constants.RESUME_INTER_ADS;
 
@@ -229,6 +229,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
 //                //cache MREC
                 LoadMREC(_activity, _mrecPosition);
+                PreloadBanner();
 
                 _adsAdsEventListener.onAdServiceLoaded();
 
@@ -1217,6 +1218,33 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     public void HideBanner() {
         HideNormalBanner();
         HideNativeBanner();
+    }
+
+    public void PreloadBanner() {
+        Activity activity = getCurrentActivity();
+        Log.d(TAG, "PreloadBanner");
+        runSafelyOnUiThread(activity, new Runnable() {
+            @Override
+            public void run() {
+                // Tạo banner nếu chưa có
+                if (bannerAdView == null) {
+                    LoadNormalBanner(activity, _bannerPosition);
+                } else {
+                    // Nếu đã có thì đảm bảo nó thuộc root view
+                    if (bannerAdView.getParent() == null) {
+                        ViewGroup rootView = activity.findViewById(android.R.id.content);
+                        rootView.addView(bannerAdView);
+                    }
+                    // Đảm bảo có tiến trình load nếu đang rảnh
+                    _LoadBannerInternal(activity);
+                }
+
+                // Dừng auto refresh ngay lập tức và ẩn banner
+                bannerAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
+                bannerAdView.stopAutoRefresh();
+                bannerAdView.setVisibility(View.GONE);
+            }
+        });
     }
 
     @Override
