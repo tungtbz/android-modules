@@ -40,12 +40,19 @@ import com.google.android.gms.ads.OnAdInspectorClosedListener;
 import com.google.android.gms.ads.OnPaidEventListener;
 import com.google.android.gms.ads.ResponseInfo;
 import com.google.android.gms.ads.appopen.AppOpenAd;
+import com.google.android.gms.ads.interstitial.InterstitialAd;
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
+import com.google.android.gms.ads.rewarded.RewardedAd;
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
+import com.google.android.gms.ads.OnUserEarnedRewardListener;
+import com.google.android.gms.ads.rewarded.RewardItem;
 import com.google.android.gms.ads.initialization.AdapterStatus;
 import com.google.android.ump.ConsentInformation;
 import com.rofi.base.Constants;
 import com.rofi.base.ThreadUltils;
 import com.unity3d.player.UnityPlayer;
 
+import java.lang.ref.WeakReference;
 import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
@@ -76,9 +83,23 @@ public class AdmobHelper {
 
     private volatile IAdmobAdListener adsEventCallback;
 
-    // UI components - should only be accessed from UI thread
-    private volatile AdView mrecAdView;
-    private volatile AdView cBannerView;
+    // UI components - Use WeakReference to prevent memory leaks
+    // These should be cleared when activity is destroyed
+    private volatile WeakReference<AdView> mrecAdViewRef;
+    private volatile WeakReference<AdView> cBannerViewRef;
+    
+    // Keep WeakReference to current activity to avoid memory leaks
+    private volatile WeakReference<Activity> currentActivityRef;
+    
+    // Interstitial Ad - Use WeakReference to prevent memory leaks
+    private volatile WeakReference<InterstitialAd> interstitialAdRef;
+    private volatile boolean interstitialAdLoading = false;
+    private volatile boolean interstitialAdLoaded = false;
+    
+    // Rewarded Ad - Use WeakReference to prevent memory leaks
+    private volatile WeakReference<RewardedAd> rewardedAdRef;
+    private volatile boolean rewardedAdLoading = false;
+    private volatile boolean rewardedAdLoaded = false;
 
     // Thread-safe singleton pattern
     public static AdmobHelper getInstance() {
@@ -96,6 +117,8 @@ public class AdmobHelper {
     String _cBannerId;
     int bannerPosition;
     String _mrecAdsId;
+    String _interstitialAdsId;
+    String _rewardedAdsId;
     
     // Thread-safe boolean flags using volatile
     private volatile boolean mrecAdLoading;
@@ -123,20 +146,120 @@ public class AdmobHelper {
 
     public AdmobHelper() {
         blockAOACount = 0;
+        mrecAdViewRef = new WeakReference<>(null);
+        cBannerViewRef = new WeakReference<>(null);
+        currentActivityRef = new WeakReference<>(null);
+        interstitialAdRef = new WeakReference<>(null);
+        rewardedAdRef = new WeakReference<>(null);
+    }
+    
+    /**
+     * Helper method to safely get banner AdView from WeakReference
+     */
+    @Nullable
+    private AdView getBannerAdView() {
+        return cBannerViewRef != null ? cBannerViewRef.get() : null;
+    }
+    
+    /**
+     * Helper method to safely set banner AdView with WeakReference
+     */
+    private void setBannerAdView(@Nullable AdView adView) {
+        if (adView != null) {
+            cBannerViewRef = new WeakReference<>(adView);
+        } else {
+            cBannerViewRef = new WeakReference<>(null);
+        }
+    }
+    
+    /**
+     * Helper method to safely get MREC AdView from WeakReference
+     */
+    @Nullable
+    private AdView getMrecAdView() {
+        return mrecAdViewRef != null ? mrecAdViewRef.get() : null;
+    }
+    
+    /**
+     * Helper method to safely set MREC AdView with WeakReference
+     */
+    private void setMrecAdView(@Nullable AdView adView) {
+        if (adView != null) {
+            mrecAdViewRef = new WeakReference<>(adView);
+        } else {
+            mrecAdViewRef = new WeakReference<>(null);
+        }
+    }
+    
+    /**
+     * Helper method to safely get Interstitial Ad from WeakReference
+     */
+    @Nullable
+    private InterstitialAd getInterstitialAd() {
+        return interstitialAdRef != null ? interstitialAdRef.get() : null;
+    }
+    
+    /**
+     * Helper method to safely set Interstitial Ad with WeakReference
+     */
+    private void setInterstitialAd(@Nullable InterstitialAd interstitialAd) {
+        if (interstitialAd != null) {
+            interstitialAdRef = new WeakReference<>(interstitialAd);
+        } else {
+            interstitialAdRef = new WeakReference<>(null);
+        }
+    }
+    
+    /**
+     * Helper method to safely get Rewarded Ad from WeakReference
+     */
+    @Nullable
+    private RewardedAd getRewardedAd() {
+        return rewardedAdRef != null ? rewardedAdRef.get() : null;
+    }
+    
+    /**
+     * Helper method to safely set Rewarded Ad with WeakReference
+     */
+    private void setRewardedAd(@Nullable RewardedAd rewardedAd) {
+        if (rewardedAd != null) {
+            rewardedAdRef = new WeakReference<>(rewardedAd);
+        } else {
+            rewardedAdRef = new WeakReference<>(null);
+        }
+    }
+    
+    /**
+     * Helper method to safely set current activity
+     */
+    private void setCurrentActivity(@Nullable Activity activity) {
+        if (activity != null) {
+            currentActivityRef = new WeakReference<>(activity);
+        } else {
+            currentActivityRef = new WeakReference<>(null);
+        }
     }
 
     public void initBanner(Activity activity, String id, int position) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Log.w(TAG, "Cannot init banner - invalid activity");
+            return;
+        }
+        
+        setCurrentActivity(activity);
         _cBannerId = id;
         bannerPosition = position;
 
-        cBannerView = new AdView(activity);
-        cBannerView.setAdSize(getBannerAdSize(activity));
-//        cBannerView.setAdSize(AdSize.BANNER);
-        cBannerView.setAdUnitId(_cBannerId);
-        cBannerView.setVisibility(View.GONE);
+        AdView bannerView = new AdView(activity);
+        bannerView.setAdSize(getBannerAdSize(activity));
+        bannerView.setAdUnitId(_cBannerId);
+        bannerView.setVisibility(View.GONE);
 
-        cBannerView.setOnPaidEventListener(adValue -> {
-            ResponseInfo responseInfo = cBannerView.getResponseInfo();
+        bannerView.setOnPaidEventListener(adValue -> {
+            AdView banner = getBannerAdView();
+            if (banner == null) return;
+            
+            ResponseInfo responseInfo = banner.getResponseInfo();
             String adSourceName = "admob";
             if (responseInfo != null) {
                 AdapterResponseInfo loadedAdapterResponseInfo = responseInfo.getLoadedAdapterResponseInfo();
@@ -151,25 +274,31 @@ public class AdmobHelper {
             onAdPaid("COLLAPSIBLE_BANNER", adValue, _cBannerId, adSourceName);
         });
 
-        cBannerView.setAdListener(new AdListener() {
+        bannerView.setAdListener(new AdListener() {
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-
+                Log.d(TAG, "BANNER onAdFailedToLoad: " + loadAdError.getMessage());
+                synchronized (AdmobHelper.this) {
+                    bannerAdLoading = false;
+                }
             }
 
             @Override
             public void onAdLoaded() {
                 super.onAdLoaded();
-                bannerAdLoading = false;
-                bannerAdLoaded = true;
+                synchronized (AdmobHelper.this) {
+                    bannerAdLoading = false;
+                    bannerAdLoaded = true;
+                }
                 Log.d(TAG, "BANNER onAdLoaded");
             }
 
             @Override
             public void onAdClicked() {
                 super.onAdClicked();
-                if (adsEventCallback != null) {
-                    adsEventCallback.onAdClicked();
+                IAdmobAdListener callback = adsEventCallback;
+                if (callback != null) {
+                    callback.onAdClicked();
                 }
             }
 
@@ -184,10 +313,13 @@ public class AdmobHelper {
         FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
 
         layoutParams.setMargins(0, 0, 0, 0);
-        cBannerView.setLayoutParams(layoutParams);
+        bannerView.setLayoutParams(layoutParams);
 
         ViewGroup rootView = activity.findViewById(android.R.id.content);
-        rootView.addView(cBannerView);
+        rootView.addView(bannerView);
+        
+        // Store in WeakReference to prevent memory leak
+        setBannerAdView(bannerView);
     }
 
     Handler handler = new Handler(Looper.getMainLooper()); // Thread-safe handler
@@ -272,7 +404,13 @@ public class AdmobHelper {
     }
 
     private void loadBanner(boolean isForceLoad) {
-        if (_cBannerId == null || cBannerView == null) return;
+        AdView bannerView = getBannerAdView();
+        if (_cBannerId == null || bannerView == null) {
+            synchronized (this) {
+                bannerAdLoading = false;
+            }
+            return;
+        }
 
         synchronized (this) {
             if (!isForceLoad && bannerAdLoading) return;
@@ -284,6 +422,15 @@ public class AdmobHelper {
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
+                AdView banner = getBannerAdView();
+                if (banner == null) {
+                    synchronized (this) {
+                        bannerAdLoading = false;
+                    }
+                    Log.w(TAG, "Banner view was garbage collected");
+                    return;
+                }
+                
                 // Create an extra parameter that aligns the bottom of the expanded ad to
                 // the bottom of the bannerView.
                 Bundle extras = new Bundle();
@@ -291,15 +438,13 @@ public class AdmobHelper {
 
                 AdRequest adRequest = new AdRequest.Builder().addNetworkExtrasBundle(AdMobAdapter.class, extras).build();
 
-                if (cBannerView != null) {
-                    cBannerView.loadAd(adRequest);
-                    Log.d(TAG, "Loading Banner");
-                } else {
-                    bannerAdLoading = false; // Reset flag if view is null
-                }
+                banner.loadAd(adRequest);
+                Log.d(TAG, "Loading Banner");
             });
         } else {
-            bannerAdLoading = false; // Reset flag if no valid activity
+            synchronized (this) {
+                bannerAdLoading = false; // Reset flag if no valid activity
+            }
         }
     }
 
@@ -307,10 +452,11 @@ public class AdmobHelper {
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
-                if (bannerAdLoaded && cBannerView != null && cBannerView.getVisibility() == View.GONE) {
+                AdView banner = getBannerAdView();
+                if (bannerAdLoaded && banner != null && banner.getVisibility() == View.GONE) {
                     Log.d(TAG, "showBanner");
-                    cBannerView.resume();
-                    cBannerView.setVisibility(View.VISIBLE);
+                    banner.resume();
+                    banner.setVisibility(View.VISIBLE);
                 }
             });
         }
@@ -320,10 +466,11 @@ public class AdmobHelper {
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
-                if (bannerAdLoaded && cBannerView != null && cBannerView.getVisibility() == View.VISIBLE) {
+                AdView banner = getBannerAdView();
+                if (bannerAdLoaded && banner != null && banner.getVisibility() == View.VISIBLE) {
                     Log.d(TAG, "HideBanner");
-                    cBannerView.pause();
-                    cBannerView.setVisibility(View.GONE);
+                    banner.pause();
+                    banner.setVisibility(View.GONE);
                 }
             });
         }
@@ -348,15 +495,17 @@ public class AdmobHelper {
 //    private int mVerticalOffset;
 
     private void updateMrecPosition(int positionCode, int topPadding) {
-        if (this.mrecAdView == null) return;
+        AdView mrec = getMrecAdView();
+        if (mrec == null) return;
         
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, new Runnable() {
                 public void run() {
-                    if (mrecAdView != null) { // Double check after UI thread switch
+                    AdView mrecView = getMrecAdView();
+                    if (mrecView != null) { // Double check after UI thread switch
                         FrameLayout.LayoutParams layoutParams = getLayoutParams(positionCode, topPadding);
-                        mrecAdView.setLayoutParams(layoutParams);
+                        mrecView.setLayoutParams(layoutParams);
                     }
                 }
             });
@@ -476,17 +625,22 @@ public class AdmobHelper {
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
-                if (mrecAdView != null) {
+                AdView mrec = getMrecAdView();
+                if (mrec != null) {
                     AdRequest adRequest = new AdRequest.Builder().build();
-                    mrecAdView.loadAd(adRequest);
+                    mrec.loadAd(adRequest);
                 } else {
                     Log.d(TAG, "loadMrec: mrecAdView is null");
-                    mrecAdLoading = false; // Reset flag if view is null
+                    synchronized (this) {
+                        mrecAdLoading = false; // Reset flag if view is null
+                    }
                 }
             });
         } else {
             Log.w(TAG, "Cannot load MREC - no valid activity");
-            mrecAdLoading = false; // Reset flag if no valid activity
+            synchronized (this) {
+                mrecAdLoading = false; // Reset flag if no valid activity
+            }
         }
     }
 
@@ -494,9 +648,10 @@ public class AdmobHelper {
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
-                if (mrecAdView != null && mrecAdLoaded && mrecAdView.getVisibility() == View.GONE) {
-                    mrecAdView.setVisibility(View.VISIBLE);
-                    mrecAdView.resume();
+                AdView mrec = getMrecAdView();
+                if (mrec != null && mrecAdLoaded && mrec.getVisibility() == View.GONE) {
+                    mrec.setVisibility(View.VISIBLE);
+                    mrec.resume();
                 }
             });
         }
@@ -506,12 +661,419 @@ public class AdmobHelper {
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
-                if (mrecAdView != null && mrecAdView.getVisibility() == View.VISIBLE) {
-                    mrecAdView.setVisibility(View.GONE);
-                    mrecAdView.pause();
+                AdView mrec = getMrecAdView();
+                if (mrec != null && mrec.getVisibility() == View.VISIBLE) {
+                    mrec.setVisibility(View.GONE);
+                    mrec.pause();
                 }
             });
         }
+    }
+
+    // ==================== INTERSTITIAL AD METHODS ====================
+    
+    /**
+     * Initialize Interstitial Ad with ad unit ID
+     * @param activity Current activity context
+     * @param adUnitId Ad unit ID for interstitial ad
+     */
+    public void initInterstitial(Activity activity, String adUnitId) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Log.w(TAG, "Cannot init interstitial - invalid activity");
+            return;
+        }
+        
+        setCurrentActivity(activity);
+        _interstitialAdsId = adUnitId;
+        Log.d(TAG, "Interstitial initialized with ad unit ID: " + adUnitId);
+    }
+    
+    /**
+     * Load interstitial ad
+     * Follows Google's best practice: check if ad is already loaded before loading
+     */
+    public void loadInterstitial() {
+        if (_interstitialAdsId == null) {
+            Log.w(TAG, "Interstitial ad unit ID is not set. Call initInterstitial() first.");
+            return;
+        }
+        
+        synchronized (this) {
+            // Don't reload if already loaded or currently loading
+            if (interstitialAdLoading || interstitialAdLoaded) {
+                Log.d(TAG, "Interstitial ad is already loading or loaded");
+                return;
+            }
+            interstitialAdLoading = true;
+        }
+        
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity == null) {
+            Log.w(TAG, "Cannot load interstitial - no valid activity");
+            synchronized (this) {
+                interstitialAdLoading = false;
+            }
+            return;
+        }
+        
+        runSafelyOnUiThread(currentActivity, () -> {
+            AdRequest adRequest = new AdRequest.Builder().build();
+            
+            InterstitialAd.load(
+                currentActivity,
+                _interstitialAdsId,
+                adRequest,
+                new InterstitialAdLoadCallback() {
+                    @Override
+                    public void onAdLoaded(@NonNull InterstitialAd ad) {
+                        Log.d(TAG, "Interstitial ad loaded");
+                        synchronized (AdmobHelper.this) {
+                            interstitialAdLoading = false;
+                            interstitialAdLoaded = true;
+                        }
+                        setInterstitialAd(ad);
+                        
+                        // Set OnPaidEventListener
+                        ad.setOnPaidEventListener(adValue -> {
+                            InterstitialAd interstitial = getInterstitialAd();
+                            if (interstitial == null) return;
+                            
+                            ResponseInfo responseInfo = interstitial.getResponseInfo();
+                            String adSourceName = "admob";
+                            if (responseInfo != null) {
+                                AdapterResponseInfo loadedAdapterResponseInfo = responseInfo.getLoadedAdapterResponseInfo();
+                                if (loadedAdapterResponseInfo != null) {
+                                    adSourceName = loadedAdapterResponseInfo.getAdSourceName();
+                                    Log.d(TAG, "INTERSTITIAL loadedAdapterResponseInfo\nadSourceName: " + adSourceName);
+                                }
+                            }
+                            
+                            onAdPaid("INTERSTITIAL", adValue, _interstitialAdsId, adSourceName);
+                        });
+                        
+                        ResponseInfo responseInfo = ad.getResponseInfo();
+                        if (responseInfo != null) {
+                            Log.d(TAG, "INTERSTITIAL adapter class name: " + responseInfo.getMediationAdapterClassName());
+                        }
+                    }
+                    
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                        Log.w(TAG, "Failed to load interstitial: " + loadAdError.getMessage());
+                        synchronized (AdmobHelper.this) {
+                            interstitialAdLoading = false;
+                            interstitialAdLoaded = false;
+                        }
+                        setInterstitialAd(null);
+                    }
+                }
+            );
+        });
+    }
+    
+    /**
+     * Show interstitial ad
+     * Follows Google's best practice: check if ad is ready before showing
+     */
+    public void showInterstitial() {
+        InterstitialAd ad = getInterstitialAd();
+        
+        if (ad == null) {
+            Log.d(TAG, "Interstitial ad is not ready yet");
+            // Preload for next time
+            loadInterstitial();
+            return;
+        }
+        
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity == null) {
+            Log.w(TAG, "Cannot show interstitial - no valid activity");
+            return;
+        }
+        
+        runSafelyOnUiThread(currentActivity, () -> {
+            InterstitialAd interstitial = getInterstitialAd();
+            if (interstitial == null) {
+                Log.d(TAG, "Interstitial ad was garbage collected");
+                return;
+            }
+            
+            // Set FullScreenContentCallback
+            interstitial.setFullScreenContentCallback(new FullScreenContentCallback() {
+                @Override
+                public void onAdShowedFullScreenContent() {
+                    Log.d(TAG, "Interstitial ad showed");
+                    IAdmobAdListener callback = adsEventCallback;
+                    if (callback != null) {
+                        callback.onAdDisplayFullScreenContent(1); // 1 for interstitial
+                    }
+                }
+                
+                @Override
+                public void onAdDismissedFullScreenContent() {
+                    Log.d(TAG, "Interstitial ad dismissed");
+                    synchronized (AdmobHelper.this) {
+                        interstitialAdLoaded = false;
+                    }
+                    setInterstitialAd(null); // Clear reference to prevent showing again
+                    
+                    IAdmobAdListener callback = adsEventCallback;
+                    if (callback != null) {
+                        callback.onAdDismissedFullScreenContent(1); // 1 for interstitial
+                    }
+                    
+                    // Preload next interstitial
+                    loadInterstitial();
+                }
+                
+                @Override
+                public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
+                    Log.w(TAG, "Interstitial failed to show: " + adError.getMessage());
+                    synchronized (AdmobHelper.this) {
+                        interstitialAdLoaded = false;
+                    }
+                    setInterstitialAd(null);
+                    
+                    // Try to load again
+                    loadInterstitial();
+                }
+                
+                @Override
+                public void onAdImpression() {
+                    Log.d(TAG, "Interstitial impression recorded");
+                }
+                
+                @Override
+                public void onAdClicked() {
+                    Log.d(TAG, "Interstitial clicked");
+                    IAdmobAdListener callback = adsEventCallback;
+                    if (callback != null) {
+                        callback.onAdClicked();
+                    }
+                }
+            });
+            
+            // Show the ad
+            interstitial.show(currentActivity);
+        });
+    }
+    
+    /**
+     * Check if interstitial ad is ready to show
+     * @return true if ad is loaded and ready
+     */
+    public boolean isInterstitialReady() {
+        return interstitialAdLoaded && getInterstitialAd() != null;
+    }
+
+    // ==================== REWARDED AD METHODS ====================
+    
+    /**
+     * Initialize Rewarded Ad with ad unit ID
+     * @param activity Current activity context
+     * @param adUnitId Ad unit ID for rewarded ad
+     */
+    public void initRewarded(Activity activity, String adUnitId) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Log.w(TAG, "Cannot init rewarded - invalid activity");
+            return;
+        }
+        
+        setCurrentActivity(activity);
+        _rewardedAdsId = adUnitId;
+        Log.d(TAG, "Rewarded initialized with ad unit ID: " + adUnitId);
+    }
+    
+    /**
+     * Load rewarded ad
+     * Follows Google's best practice: check if ad is already loaded before loading
+     */
+    public void loadRewarded() {
+        if (_rewardedAdsId == null) {
+            Log.w(TAG, "Rewarded ad unit ID is not set. Call initRewarded() first.");
+            return;
+        }
+        
+        synchronized (this) {
+            // Don't reload if already loaded or currently loading
+            if (rewardedAdLoading || rewardedAdLoaded) {
+                Log.d(TAG, "Rewarded ad is already loading or loaded");
+                return;
+            }
+            rewardedAdLoading = true;
+        }
+        
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity == null) {
+            Log.w(TAG, "Cannot load rewarded - no valid activity");
+            synchronized (this) {
+                rewardedAdLoading = false;
+            }
+            return;
+        }
+        
+        runSafelyOnUiThread(currentActivity, () -> {
+            AdRequest adRequest = new AdRequest.Builder().build();
+            
+            RewardedAd.load(
+                currentActivity,
+                _rewardedAdsId,
+                adRequest,
+                new RewardedAdLoadCallback() {
+                    @Override
+                    public void onAdLoaded(@NonNull RewardedAd ad) {
+                        Log.d(TAG, "Rewarded ad loaded");
+                        synchronized (AdmobHelper.this) {
+                            rewardedAdLoading = false;
+                            rewardedAdLoaded = true;
+                        }
+                        setRewardedAd(ad);
+                        
+                        // Set OnPaidEventListener
+                        ad.setOnPaidEventListener(adValue -> {
+                            RewardedAd rewarded = getRewardedAd();
+                            if (rewarded == null) return;
+                            
+                            ResponseInfo responseInfo = rewarded.getResponseInfo();
+                            String adSourceName = "admob";
+                            if (responseInfo != null) {
+                                AdapterResponseInfo loadedAdapterResponseInfo = responseInfo.getLoadedAdapterResponseInfo();
+                                if (loadedAdapterResponseInfo != null) {
+                                    adSourceName = loadedAdapterResponseInfo.getAdSourceName();
+                                    Log.d(TAG, "REWARDED loadedAdapterResponseInfo\nadSourceName: " + adSourceName);
+                                }
+                            }
+                            
+                            onAdPaid("REWARDED", adValue, _rewardedAdsId, adSourceName);
+                        });
+                        
+                        ResponseInfo responseInfo = ad.getResponseInfo();
+                        if (responseInfo != null) {
+                            Log.d(TAG, "REWARDED adapter class name: " + responseInfo.getMediationAdapterClassName());
+                        }
+                    }
+                    
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                        Log.w(TAG, "Failed to load rewarded: " + loadAdError.getMessage());
+                        synchronized (AdmobHelper.this) {
+                            rewardedAdLoading = false;
+                            rewardedAdLoaded = false;
+                        }
+                        setRewardedAd(null);
+                    }
+                }
+            );
+        });
+    }
+    
+    /**
+     * Show rewarded ad with reward listener
+     * User must complete the ad to receive reward
+     * Follows Google's best practice: check if ad is ready before showing
+     */
+    public void showRewarded(int rewardCode) {
+        RewardedAd ad = getRewardedAd();
+        
+        if (ad == null) {
+            Log.d(TAG, "Rewarded ad is not ready yet");
+            // Preload for next time
+            loadRewarded();
+            return;
+        }
+        
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity == null) {
+            Log.w(TAG, "Cannot show rewarded - no valid activity");
+            return;
+        }
+        
+        runSafelyOnUiThread(currentActivity, () -> {
+            RewardedAd rewarded = getRewardedAd();
+            if (rewarded == null) {
+                Log.d(TAG, "Rewarded ad was garbage collected");
+                return;
+            }
+            
+            // Set FullScreenContentCallback
+            rewarded.setFullScreenContentCallback(new FullScreenContentCallback() {
+                @Override
+                public void onAdShowedFullScreenContent() {
+                    Log.d(TAG, "Rewarded ad showed");
+                    IAdmobAdListener callback = adsEventCallback;
+                    if (callback != null) {
+                        callback.onAdDisplayFullScreenContent(2); // 2 for rewarded
+                    }
+                }
+                
+                @Override
+                public void onAdDismissedFullScreenContent() {
+                    Log.d(TAG, "Rewarded ad dismissed");
+                    synchronized (AdmobHelper.this) {
+                        rewardedAdLoaded = false;
+                    }
+                    setRewardedAd(null); // Single-use: clear reference after dismiss
+                    
+                    IAdmobAdListener callback = adsEventCallback;
+                    if (callback != null) {
+                        callback.onAdDismissedFullScreenContent(2); // 2 for rewarded
+                    }
+                    
+                    // Preload next rewarded ad
+                    loadRewarded();
+                }
+                
+                @Override
+                public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
+                    Log.w(TAG, "Rewarded failed to show: " + adError.getMessage());
+                    synchronized (AdmobHelper.this) {
+                        rewardedAdLoaded = false;
+                    }
+                    setRewardedAd(null);
+                    
+                    // Try to load again
+                    loadRewarded();
+                }
+                
+                @Override
+                public void onAdImpression() {
+                    Log.d(TAG, "Rewarded impression recorded");
+                }
+                
+                @Override
+                public void onAdClicked() {
+                    Log.d(TAG, "Rewarded clicked");
+                    IAdmobAdListener callback = adsEventCallback;
+                    if (callback != null) {
+                        callback.onAdClicked();
+                    }
+                }
+            });
+            
+            // Show the ad with reward listener
+            rewarded.show(currentActivity, new OnUserEarnedRewardListener() {
+                @Override
+                public void onUserEarnedReward(@NonNull RewardItem rewardItem) {
+                    // User earned the reward
+                    int amount = rewardItem.getAmount();
+                    String type = rewardItem.getType();
+                    Log.d(TAG, "User earned reward: " + amount + " " + type);
+                    
+                    IAdmobAdListener callback = adsEventCallback;
+                    if (callback != null) {
+                        callback.onUserEarnedReward(type, amount);
+                    }
+                }
+            });
+        });
+    }
+    
+    /**
+     * Check if rewarded ad is ready to show
+     * @return true if ad is loaded and ready
+     */
+    public boolean isRewardedReady() {
+        return rewardedAdLoaded && getRewardedAd() != null;
     }
 
     public void bypassConsentFlow(Activity activity) {
@@ -557,16 +1119,29 @@ public class AdmobHelper {
     }
 
     private void CreateMrecAdView(Activity activity, String adUnitId, int positionCode) {
-        mrecAdView = new AdView(activity);
-        mrecAdView.setAdSize(AdSize.MEDIUM_RECTANGLE);
-        mrecAdView.setAdUnitId(adUnitId);
-        mrecAdView.setVisibility(View.GONE);
-        mrecAdView.setDescendantFocusability(393216);
-        AdmobHelper.getCurrentActivity().addContentView(mrecAdView, (ViewGroup.LayoutParams) getLayoutParams(positionCode, 0));
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            Log.w(TAG, "Cannot create MREC - invalid activity");
+            return;
+        }
+        
+        setCurrentActivity(activity);
+        
+        AdView mrecView = new AdView(activity);
+        mrecView.setAdSize(AdSize.MEDIUM_RECTANGLE);
+        mrecView.setAdUnitId(adUnitId);
+        mrecView.setVisibility(View.GONE);
+        mrecView.setDescendantFocusability(393216);
+        activity.addContentView(mrecView, (ViewGroup.LayoutParams) getLayoutParams(positionCode, 0));
 
-        mrecAdView.setOnPaidEventListener(adValue -> {
+        mrecView.setOnPaidEventListener(adValue -> {
+            AdView mrec = getMrecAdView();
+            if (mrec == null) return;
+            
+            ResponseInfo responseInfo = mrec.getResponseInfo();
+            if (responseInfo == null) return;
+            
             // Get the ad unit ID.
-            AdapterResponseInfo loadedAdapterResponseInfo = mrecAdView.getResponseInfo().getLoadedAdapterResponseInfo();
+            AdapterResponseInfo loadedAdapterResponseInfo = responseInfo.getLoadedAdapterResponseInfo();
             String adSourceName = "admob";
             if (loadedAdapterResponseInfo != null) {
                 adSourceName = loadedAdapterResponseInfo.getAdSourceName();
@@ -578,43 +1153,52 @@ public class AdmobHelper {
 
         });
 
-        mrecAdView.setAdListener(new AdListener() {
+        mrecView.setAdListener(new AdListener() {
             @Override
             public void onAdLoaded() {
                 super.onAdLoaded();
-                mrecAdLoading = false;
-                mrecAdLoaded = true;
+                synchronized (AdmobHelper.this) {
+                    mrecAdLoading = false;
+                    mrecAdLoaded = true;
+                }
 
-                Log.d(TAG, "Banner adapter class name: " + Objects.requireNonNull(mrecAdView.getResponseInfo()).getMediationAdapterClassName());
+                AdView mrec = getMrecAdView();
+                if (mrec != null && mrec.getResponseInfo() != null) {
+                    Log.d(TAG, "MREC adapter class name: " + mrec.getResponseInfo().getMediationAdapterClassName());
+                }
             }
 
             @Override
             public void onAdClicked() {
                 super.onAdClicked();
-                if (adsEventCallback != null) adsEventCallback.onAdClicked();
+                IAdmobAdListener callback = adsEventCallback;
+                if (callback != null) callback.onAdClicked();
             }
 
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
                 super.onAdFailedToLoad(loadAdError);
+                synchronized (AdmobHelper.this) {
+                    mrecAdLoading = false;
+                }
                 Log.d(TAG, "MREC onAdFailedToLoad" + "\nloadAdError: " + loadAdError.getMessage());
 
                 // Tải lại quảng cáo sau 30 giây
-                mrecAdView.postDelayed(() -> {
-                    AdRequest adRequest = new AdRequest.Builder().build();
-                    mrecAdView.loadAd(adRequest);
-                }, 30000);  // 30 giây
+                AdView mrec = getMrecAdView();
+                if (mrec != null) {
+                    mrec.postDelayed(() -> {
+                        AdView mrecRetry = getMrecAdView();
+                        if (mrecRetry != null) {
+                            AdRequest adRequest = new AdRequest.Builder().build();
+                            mrecRetry.loadAd(adRequest);
+                        }
+                    }, 30000);  // 30 giây
+                }
             }
         });
-
-//        int gravity = position == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-//        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
-//        layoutParams.setMargins(0, 0, 0, 0);
-//        mrecAdView.setLayoutParams(layoutParams);
-//
-//        ViewGroup rootView = activity.findViewById(android.R.id.content);
-//        rootView.addView(mrecAdView);
-
+        
+        // Store in WeakReference to prevent memory leak
+        setMrecAdView(mrecView);
     }
 
     private int dpToPx(Context var0, @Dimension(unit = 0) int var1) {
@@ -830,8 +1414,9 @@ public class AdmobHelper {
                 });
             }
             loadMrec();
-
             loadBanner(true);
+            loadInterstitial();
+            loadRewarded();
         });
     }
 
@@ -846,8 +1431,24 @@ public class AdmobHelper {
                 handler.removeCallbacksAndMessages(null);
             }
             
+            // Destroy AdViews to release resources
+            AdView banner = getBannerAdView();
+            if (banner != null) {
+                banner.destroy();
+            }
+            
+            AdView mrec = getMrecAdView();
+            if (mrec != null) {
+                mrec.destroy();
+            }
+            
             // Clear ad references to prevent memory leaks
             _appOpenAd = null;
+            setBannerAdView(null);
+            setMrecAdView(null);
+            setInterstitialAd(null);
+            setRewardedAd(null);
+            setCurrentActivity(null);
             
             // Clear callbacks
             adsEventCallback = null;
@@ -859,6 +1460,10 @@ public class AdmobHelper {
             bannerAdLoaded = false;
             mrecAdLoading = false;
             mrecAdLoaded = false;
+            interstitialAdLoading = false;
+            interstitialAdLoaded = false;
+            rewardedAdLoading = false;
+            rewardedAdLoaded = false;
             
             Log.d(TAG, "AdmobHelper cleaned up");
         }
@@ -868,11 +1473,14 @@ public class AdmobHelper {
      * Pause ads when activity goes to background
      */
     public void onPause() {
-        if (cBannerView != null) {
-            cBannerView.pause();
+        AdView banner = getBannerAdView();
+        if (banner != null) {
+            banner.pause();
         }
-        if (mrecAdView != null) {
-            mrecAdView.pause();
+        
+        AdView mrec = getMrecAdView();
+        if (mrec != null) {
+            mrec.pause();
         }
     }
     
@@ -880,11 +1488,14 @@ public class AdmobHelper {
      * Resume ads when activity comes to foreground
      */
     public void onResume() {
-        if (cBannerView != null) {
-            cBannerView.resume();
+        AdView banner = getBannerAdView();
+        if (banner != null) {
+            banner.resume();
         }
-        if (mrecAdView != null) {
-            mrecAdView.resume();
+        
+        AdView mrec = getMrecAdView();
+        if (mrec != null) {
+            mrec.resume();
         }
     }
 }

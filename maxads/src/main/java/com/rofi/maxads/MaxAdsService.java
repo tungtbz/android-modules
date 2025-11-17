@@ -1,4 +1,4 @@
-    package com.rofi.maxads;
+package com.rofi.maxads;
 
 import static com.rofi.base.Constants.RESUME_INTER_ADS;
 
@@ -75,7 +75,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
     private volatile int mCurrentVideoRewardRequestCode;
     private volatile int mCurrentInterRequestCode;
-    
+
     //0 not load, 1 call load ad, 2 ad loaded
     private volatile int mRectBannerState;
     //1 hide afterloaded, 2 show afterloaded
@@ -86,7 +86,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
     private volatile int mRetryAttemptNativeAds;
     private volatile int mRetryAttemptNativeBannerAds;
-    
+
     //native ads - UI components should be volatile for visibility
     private volatile FrameLayout mNativeRectAdsContainer;
     private volatile FrameLayout mNativeBannerAdsContainer;
@@ -158,7 +158,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
         _bannerPosition = Integer.parseInt(args[7]);
         _mrecPosition = Integer.parseInt(args[8]);
-        _mrecBgColor = Color.WHITE;
+        _mrecBgColor = Color.TRANSPARENT;
 
         if (args.length >= 10) _openAdsId = args[9];
         if (args.length >= 11) {
@@ -254,7 +254,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             Log.w("MaxAdsService", "Activity is null or finishing, skipping UI operation");
             return;
         }
-        
+
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 try {
@@ -815,7 +815,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             timer.cancel();
             timer = null;
         }
-        
+
         isCoolDownShowInter = true;
         timer = new Timer("MaxAdsService-Timer", true); // Use daemon thread
         timer.schedule(new TimerTask() {
@@ -971,6 +971,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     }
 
     boolean _isBannerLoading;
+    boolean _isBannerLoaded;
 
     private void LoadNormalBanner(Activity activity, int position) {
 //        String bannerKey = activity.getResources().getString(R.string.applovin_banner_key);
@@ -998,6 +999,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             @Override
             public void onAdLoaded(MaxAd ad) {
                 _isBannerLoading = false;
+                _isBannerLoaded = true;
                 Log.d(TAG, "BANNER onAdLoaded: ");
             }
 
@@ -1038,7 +1040,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight();
         int heightPx = AppLovinSdkUtils.dpToPx(activity, heightDp);
         bannerAdView.setExtraParameter("adaptive_banner", "true");
-        bannerAdView.setBackgroundColor(Color.WHITE);
+        bannerAdView.setBackgroundColor(Color.TRANSPARENT);
 
         // --- BẮT ĐẦU PHẦN SỬA ĐỔI ---
 
@@ -1633,6 +1635,11 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     }
 
     @Override
+    public boolean isBannerLoaded() {
+        return bannerAdView != null && _isBannerLoaded;
+    }
+
+    @Override
     public boolean canShowResumeAds() {
         if (_isDisableResumeAds) return false;
         if (_isDisableInterAds) return false;
@@ -1717,47 +1724,47 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 timer.cancel();
                 timer = null;
             }
-            
+
             // Clean up ads
             if (mInterstitialAd != null) {
                 mInterstitialAd = null;
             }
-            
+
             if (mRewardedAd != null) {
                 mRewardedAd = null;
             }
-            
+
             if (appOpenAd != null) {
                 appOpenAd = null;
             }
-            
+
             // Clean up native ads
             if (nativeRectAd != null && nativeRectAdLoader != null) {
                 nativeRectAdLoader.destroy(nativeRectAd);
                 nativeRectAd = null;
             }
-            
+
             if (nativeBannerAd != null && nativeBannerAdLoader != null) {
                 nativeBannerAdLoader.destroy(nativeBannerAd);
                 nativeBannerAd = null;
             }
-            
+
             // Clean up ad views
             if (bannerAdView != null) {
                 bannerAdView.stopAutoRefresh();
                 bannerAdView = null;
             }
-            
+
             if (rectAdView != null) {
                 rectAdView.stopAutoRefresh();
                 rectAdView = null;
             }
-            
+
             if (mFreeMrecAdViews != null) {
                 mFreeMrecAdViews.stopAutoRefresh();
                 mFreeMrecAdViews = null;
             }
-            
+
             // Reset states
             isFullscreenAdsShowing = false;
             isCoolDownShowInter = false;
@@ -1767,17 +1774,17 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             _isFreeMrecLoaded = false;
             _isFreeMrecLoading = false;
             _isBannerLoading = false;
-            
+            _isBannerLoaded = false;
             // Clear callbacks
             _adsAdsEventListener = null;
             _activity = null;
-            
+
             Log.d(TAG, "MaxAdsService cleaned up");
         } catch (Exception e) {
             Log.e(TAG, "Error during cleanup", e);
         }
     }
-    
+
     /**
      * Pause ads when activity goes to background
      */
@@ -1796,7 +1803,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             Log.e(TAG, "Error during onPause", e);
         }
     }
-    
+
     /**
      * Resume ads when activity comes to foreground
      */

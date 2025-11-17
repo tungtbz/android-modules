@@ -11,4 +11,11 @@ public interface IAdmobAdListener {
 
     void onBannerLoaded();
     void onBannerCollapDisplay();
+    
+    /**
+     * Called when user earns reward from Rewarded Ad
+     * @param type Reward type (e.g., "coins", "lives", etc.)
+     * @param amount Reward amount
+     */
+    void onUserEarnedReward(String type, int amount);
 }
