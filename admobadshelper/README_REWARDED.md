@@ -40,8 +40,9 @@ adHelper.loadRewarded();
 ```java
 adHelper.SetAdsCallback(new IAdmobAdListener() {
     @Override
-    public void onUserEarnedReward(String type, int amount) {
+    public void onUserEarnedReward(int rewardCode, String type, int amount) {
         // User đã xem đủ ad, cộng thưởng
+        // rewardCode: custom code passed when showing ad
         userCoins += amount;
         showMessage("You earned " + amount + " " + type);
     }
@@ -56,7 +57,11 @@ adHelper.SetAdsCallback(new IAdmobAdListener() {
 // Show when user clicks button
 button.setOnClickListener(v -> {
     if (adHelper.isRewardedReady()) {
+        // Method 1: Show without reward code (backward compatible)
         adHelper.showRewarded();
+        
+        // Method 2: Show with custom reward code to identify reward type
+        // adHelper.showRewarded(REWARD_CODE_EXTRA_COINS);
     } else {
         Toast.makeText(this, "Ad is loading...", Toast.LENGTH_SHORT).show();
         adHelper.loadRewarded();
@@ -104,9 +109,12 @@ protected void onCreate(Bundle savedInstanceState) {
 
 ---
 
-### `showRewarded()`
+### `showRewarded()` / `showRewarded(int rewardCode)`
 
 Hiển thị rewarded ad. Tự động kiểm tra ad availability.
+
+**Parameters:**
+- `rewardCode` (optional): Custom code to identify reward type. This code will be passed back in `onUserEarnedReward` callback.
 
 **Behavior:**
 - Nếu ad ready: Hiển thị ngay
@@ -116,10 +124,39 @@ Hiển thị rewarded ad. Tự động kiểm tra ad availability.
 
 **Example:**
 ```java
-// Show when user clicks "Watch Ad" button
+// Method 1: Simple show (backward compatible)
 buttonWatchAd.setOnClickListener(v -> {
-    adHelper.showRewarded();
+    adHelper.showRewarded(); // rewardCode = 0
 });
+
+// Method 2: Show with reward code to identify different rewards
+private static final int REWARD_EXTRA_COINS = 1;
+private static final int REWARD_EXTRA_LIVES = 2;
+private static final int REWARD_UNLOCK_ITEM = 3;
+
+buttonExtraCoins.setOnClickListener(v -> {
+    adHelper.showRewarded(REWARD_EXTRA_COINS);
+});
+
+buttonExtraLives.setOnClickListener(v -> {
+    adHelper.showRewarded(REWARD_EXTRA_LIVES);
+});
+
+// Handle in callback
+@Override
+public void onUserEarnedReward(int rewardCode, String type, int amount) {
+    switch (rewardCode) {
+        case REWARD_EXTRA_COINS:
+            userCoins += amount;
+            break;
+        case REWARD_EXTRA_LIVES:
+            userLives += amount;
+            break;
+        case REWARD_UNLOCK_ITEM:
+            unlockItem();
+            break;
+    }
+}
 ```
 
 ---
@@ -150,9 +187,10 @@ if (adHelper.isRewardedReady()) {
 ```java
 adHelper.SetAdsCallback(new IAdmobAdListener() {
     @Override
-    public void onUserEarnedReward(String type, int amount) {
+    public void onUserEarnedReward(int rewardCode, String type, int amount) {
         // CHỈ cộng thưởng trong callback này!
         // Callback này CHỈ được gọi khi user xem đủ ad
+        // rewardCode: custom code passed when showing ad
         
         userCoins += amount;
         updateUI();
@@ -171,9 +209,10 @@ adHelper.SetAdsCallback(new IAdmobAdListener() {
 ```java
 adHelper.SetAdsCallback(new IAdmobAdListener() {
     @Override
-    public void onUserEarnedReward(String type, int amount) {
+    public void onUserEarnedReward(int rewardCode, String type, int amount) {
         // User earned reward (xem đủ ad)
-        grantReward(type, amount);
+        // rewardCode: identify which button/reward triggered the ad
+        grantReward(rewardCode, type, amount);
     }
     
     @Override
@@ -239,7 +278,8 @@ adHelper.SetAdsCallback(new IAdmobAdListener() {
 - `"App open"` = App Open Ad
 
 **Reward Parameters:**
-- `type`: String - Loại thưởng (e.g., "coins", "lives")
+- `rewardCode`: int - Custom code passed when showing ad (để phân biệt loại reward)
+- `type`: String - Loại thưởng (e.g., "coins", "lives") 
 - `amount`: int - Số lượng thưởng
 
 ---

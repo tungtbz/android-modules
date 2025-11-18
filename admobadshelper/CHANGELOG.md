@@ -57,12 +57,15 @@ public boolean isRewardedReady()
 #### Interface Update
 ```java
 // IAdmobAdListener.java
-void onUserEarnedReward(String type, int amount);
+void onUserEarnedReward(int rewardCode, String type, int amount);
 ```
 
 #### Callback Support
 Rewarded callbacks through `IAdmobAdListener`:
-- `onUserEarnedReward(String, int)` - When user earns reward (NEW!)
+- `onUserEarnedReward(int, String, int)` - When user earns reward (NEW!)
+  - `rewardCode`: Custom code to identify reward type
+  - `type`: Reward type from AdMob (e.g., "coins")
+  - `amount`: Reward amount
 - `onAdDisplayFullScreenContent(2)` - When rewarded shows (adType=2)
 - `onAdDismissedFullScreenContent(2)` - When rewarded dismissed (adType=2)
 - `onAdClicked()` - When rewarded clicked
@@ -119,7 +122,8 @@ adHelper.loadRewarded();
 // 3. Setup callback
 adHelper.SetAdsCallback(new IAdmobAdListener() {
     @Override
-    public void onUserEarnedReward(String type, int amount) {
+    public void onUserEarnedReward(int rewardCode, String type, int amount) {
+        // rewardCode: identify which reward button was clicked
         userCoins += amount; // Grant reward!
     }
     // ... other callbacks
@@ -127,7 +131,11 @@ adHelper.SetAdsCallback(new IAdmobAdListener() {
 
 // 4. Show (user clicks button)
 buttonWatchAd.setOnClickListener(v -> {
+    // Simple show (backward compatible)
     adHelper.showRewarded();
+    
+    // Or with reward code to identify reward type
+    // adHelper.showRewarded(REWARD_CODE_COINS);
 });
 ```
 
@@ -149,11 +157,11 @@ Configure in AdMob Console:
 **Interface Update Required:**
 ```java
 // IAdmobAdListener now requires implementing new method:
-void onUserEarnedReward(String type, int amount);
+void onUserEarnedReward(int rewardCode, String type, int amount);
 
 // Add empty implementation if not using Rewarded Ads:
 @Override
-public void onUserEarnedReward(String type, int amount) {
+public void onUserEarnedReward(int rewardCode, String type, int amount) {
     // Not used
 }
 ```
@@ -164,8 +172,9 @@ public void onUserEarnedReward(String type, int amount) {
 1. **Update IAdmobAdListener implementation**:
 ```java
 @Override
-public void onUserEarnedReward(String type, int amount) {
+public void onUserEarnedReward(int rewardCode, String type, int amount) {
     // Grant reward to user
+    // rewardCode: custom code to identify reward type
     userCoins += amount;
 }
 ```
@@ -200,6 +209,100 @@ buttonWatchAd.setOnClickListener(v -> {
 - Example: `REWARDED_USAGE_EXAMPLE.java`
 - Documentation: `README_REWARDED.md`
 - Quick Start: `REWARDED_QUICK_START.md`
+
+---
+
+## Version 2.1.1 (November 17, 2025) - Interstitial Enable/Disable Control
+
+### 🆕 NEW FEATURES
+
+#### Interstitial Enable/Disable Control
+- **Added**: `disableInterstitial()` - Disable interstitial ads (for premium users, critical flows, etc.)
+- **Added**: `enableInterstitial()` - Enable interstitial ads
+- **Added**: `isInterstitialEnabled()` - Check if interstitial ads are enabled
+- **Added**: Thread-safe flag: `interstitialAdsEnabled` (default: true)
+- **Enhanced**: `loadInterstitial()` now checks if ads are enabled before loading
+- **Enhanced**: `showInterstitial()` now checks if ads are enabled before showing
+
+#### Use Cases for Disable/Enable
+- ✅ **Premium Users**: Disable ads for paying customers
+- ✅ **Critical Flows**: Disable during tutorial, checkout, onboarding
+- ✅ **Remote Control**: Enable/disable via Firebase Remote Config
+- ✅ **Time-based**: Temporarily disable ads (e.g., for 30 minutes after purchase)
+- ✅ **Game Modes**: Disable in competitive mode, enable in casual mode
+- ✅ **IAP Integration**: Offer ad-free as reward option
+
+### 📝 DOCUMENTATION
+
+#### Updated Files
+- **Updated**: `README_INTERSTITIAL.md` - Added Enable/Disable Control section
+  - Premium users example
+  - Tutorial flow example
+  - Critical user flows example
+  - Remote config control example
+  - Time-based control example
+  - Game mode control example
+  - IAP reward example
+- **Updated**: API reference with new methods
+- **Updated**: Changelog section
+
+### 🔧 API UPDATES
+
+#### New Methods
+```java
+// Disable interstitial ads
+public void disableInterstitial()
+
+// Enable interstitial ads
+public void enableInterstitial()
+
+// Check if interstitial ads are enabled
+public boolean isInterstitialEnabled()
+```
+
+### 📚 USAGE EXAMPLES
+
+#### Premium User Example
+```java
+// Disable ads for premium users
+if (userIsPremium()) {
+    adHelper.disableInterstitial();
+}
+
+// Re-enable when subscription expires
+void onSubscriptionExpired() {
+    adHelper.enableInterstitial();
+    adHelper.loadInterstitial();
+}
+```
+
+#### Tutorial Flow Example
+```java
+// Disable during tutorial
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    AdmobHelper.getInstance().disableInterstitial();
+    startTutorial();
+}
+
+// Enable after tutorial
+void onTutorialCompleted() {
+    AdmobHelper.getInstance().enableInterstitial();
+    AdmobHelper.getInstance().loadInterstitial();
+}
+```
+
+### 🔒 THREAD SAFETY
+- **Added**: `volatile boolean interstitialAdsEnabled` for thread-safe access
+- **Verified**: All enable/disable operations are thread-safe
+
+### 🚨 BREAKING CHANGES
+None - Fully backward compatible. Default behavior: ads enabled.
+
+### ⚡ PERFORMANCE
+- **Improved**: Prevents unnecessary ad loading when disabled
+- **Improved**: Fast check before showing ads
 
 ---
 

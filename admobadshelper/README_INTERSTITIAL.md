@@ -12,6 +12,7 @@ Interstitial Ad là quảng cáo toàn màn hình hiển thị tại các điể
 ✅ **Lifecycle-aware**: Xử lý đúng lifecycle của Activity  
 ✅ **Revenue tracking**: Tích hợp OnPaidEventListener  
 ✅ **Full callbacks**: Hỗ trợ đầy đủ FullScreenContentCallback  
+✅ **Enable/Disable control**: Tắt/bật hiển thị interstitial ads linh hoạt  
 
 ## Cài đặt nhanh
 
@@ -113,6 +114,70 @@ if (adHelper.isInterstitialReady()) {
 } else {
     // Proceed without ad or load for next time
     adHelper.loadInterstitial();
+}
+```
+
+---
+
+### `disableInterstitial()`
+
+Tắt interstitial ads. Khi disabled, interstitial ads sẽ không load và không hiển thị.
+
+**Use Cases:**
+- Tắt ads cho premium users
+- Tắt ads trong critical flows (payment, tutorial)
+- Tắt ads tạm thời khi cần
+
+**Example:**
+```java
+// Disable for premium users
+if (userIsPremium) {
+    adHelper.disableInterstitial();
+}
+
+// Disable during tutorial
+void startTutorial() {
+    adHelper.disableInterstitial();
+    showTutorialSteps();
+}
+```
+
+---
+
+### `enableInterstitial()`
+
+Bật interstitial ads. Khi enabled, interstitial ads có thể load và hiển thị bình thường.
+
+**Example:**
+```java
+// Enable after tutorial
+void completeTutorial() {
+    adHelper.enableInterstitial();
+    adHelper.loadInterstitial(); // Start loading
+}
+
+// Re-enable for free users
+if (!userIsPremium) {
+    adHelper.enableInterstitial();
+}
+```
+
+---
+
+### `isInterstitialEnabled()`
+
+Kiểm tra xem interstitial ads có đang được bật hay không.
+
+**Returns:** `boolean` - true nếu enabled, false nếu disabled
+
+**Example:**
+```java
+if (adHelper.isInterstitialEnabled()) {
+    // Can show ads
+    adHelper.showInterstitial();
+} else {
+    // Ads disabled, skip
+    Log.d(TAG, "Interstitial ads are disabled");
 }
 ```
 
@@ -451,6 +516,178 @@ adHelper.showInterstitial(); // Check logcat for details
 
 ## Advanced Features
 
+### Enable/Disable Control
+
+#### Premium Users (Ad-Free Experience)
+
+```java
+public class MainActivity extends AppCompatActivity {
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        AdmobHelper adHelper = AdmobHelper.getInstance();
+        adHelper.initInterstitial(this, INTERSTITIAL_AD_UNIT_ID);
+        
+        // Check premium status
+        if (userIsPremium()) {
+            adHelper.disableInterstitial();
+            Log.d(TAG, "Premium user - ads disabled");
+        } else {
+            adHelper.enableInterstitial();
+            adHelper.loadInterstitial();
+        }
+    }
+    
+    void onPurchaseCompleted() {
+        // User bought premium
+        AdmobHelper adHelper = AdmobHelper.getInstance();
+        adHelper.disableInterstitial();
+        showThankYouMessage();
+    }
+    
+    void onSubscriptionExpired() {
+        // Subscription expired, show ads again
+        AdmobHelper adHelper = AdmobHelper.getInstance();
+        adHelper.enableInterstitial();
+        adHelper.loadInterstitial();
+    }
+}
+```
+
+#### Tutorial Flow
+
+```java
+public class TutorialActivity extends AppCompatActivity {
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        // Disable ads during tutorial
+        AdmobHelper.getInstance().disableInterstitial();
+        startTutorial();
+    }
+    
+    void onTutorialCompleted() {
+        // Re-enable ads after tutorial
+        AdmobHelper adHelper = AdmobHelper.getInstance();
+        adHelper.enableInterstitial();
+        adHelper.loadInterstitial(); // Start preloading
+        
+        navigateToMainScreen();
+    }
+}
+```
+
+#### Critical User Flows
+
+```java
+public class CheckoutActivity extends AppCompatActivity {
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        // Disable ads during checkout
+        AdmobHelper.getInstance().disableInterstitial();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        
+        // Re-enable ads when leaving checkout
+        AdmobHelper.getInstance().enableInterstitial();
+    }
+}
+```
+
+#### Remote Config Control
+
+```java
+public class MainActivity extends AppCompatActivity {
+    
+    void applyRemoteConfig() {
+        FirebaseRemoteConfig remoteConfig = FirebaseRemoteConfig.getInstance();
+        
+        // Fetch from remote config
+        boolean adsEnabled = remoteConfig.getBoolean("interstitial_ads_enabled");
+        
+        AdmobHelper adHelper = AdmobHelper.getInstance();
+        if (adsEnabled) {
+            adHelper.enableInterstitial();
+            adHelper.loadInterstitial();
+        } else {
+            adHelper.disableInterstitial();
+        }
+    }
+}
+```
+
+#### Time-based Control
+
+```java
+public class AdController {
+    private static final long DISABLE_DURATION_MS = 1800000; // 30 minutes
+    
+    void disableAdsTemporarily() {
+        AdmobHelper adHelper = AdmobHelper.getInstance();
+        adHelper.disableInterstitial();
+        
+        // Re-enable after 30 minutes
+        new Handler().postDelayed(() -> {
+            adHelper.enableInterstitial();
+            adHelper.loadInterstitial();
+        }, DISABLE_DURATION_MS);
+    }
+}
+```
+
+#### Game Mode Control
+
+```java
+public class GameActivity extends AppCompatActivity {
+    
+    void onCompetitiveModeStarted() {
+        // Disable ads during competitive gameplay
+        AdmobHelper.getInstance().disableInterstitial();
+    }
+    
+    void onCasualModeStarted() {
+        // Enable ads in casual mode
+        AdmobHelper adHelper = AdmobHelper.getInstance();
+        adHelper.enableInterstitial();
+        adHelper.loadInterstitial();
+    }
+}
+```
+
+#### IAP Reward (Watch Ad or Pay)
+
+```java
+public class RewardActivity extends AppCompatActivity {
+    
+    void unlockFeature() {
+        // User can either watch ad or pay
+        AdmobHelper adHelper = AdmobHelper.getInstance();
+        
+        if (adHelper.isInterstitialEnabled() && adHelper.isInterstitialReady()) {
+            // Option 1: Watch ad
+            showDialog("Watch ad to unlock?", () -> {
+                adHelper.showInterstitial();
+            });
+        } else {
+            // Option 2: Pay only
+            showPurchaseDialog();
+        }
+    }
+}
+```
+
+---
+
 ### Custom frequency capping
 
 ```java
@@ -543,7 +780,13 @@ Xem file `INTERSTITIAL_USAGE_EXAMPLE.java` để có ví dụ đầy đủ về 
 
 ## Changelog
 
-### v1.0.0 (Current)
+### v1.1.0 (Current)
+- ✅ Added Enable/Disable control for Interstitial Ads
+- ✅ New methods: `disableInterstitial()`, `enableInterstitial()`, `isInterstitialEnabled()`
+- ✅ Support for premium users (ad-free experience)
+- ✅ Control ads during critical flows (tutorial, checkout, etc.)
+
+### v1.0.0
 - ✅ Initial Interstitial Ad integration
 - ✅ Thread-safe implementation
 - ✅ Memory leak prevention với WeakReference

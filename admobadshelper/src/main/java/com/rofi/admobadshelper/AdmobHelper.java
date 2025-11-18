@@ -95,11 +95,16 @@ public class AdmobHelper {
     private volatile WeakReference<InterstitialAd> interstitialAdRef;
     private volatile boolean interstitialAdLoading = false;
     private volatile boolean interstitialAdLoaded = false;
+    private volatile boolean interstitialAdsEnabled = true; // Control interstitial ad display
+    private volatile long lastInterstitialDismissedTime = 0; // Track when last interstitial was dismissed
+    private volatile long interstitialIntervalMs = 0; // Minimum interval between interstitials (0 = no limit)
     
     // Rewarded Ad - Use WeakReference to prevent memory leaks
     private volatile WeakReference<RewardedAd> rewardedAdRef;
     private volatile boolean rewardedAdLoading = false;
     private volatile boolean rewardedAdLoaded = false;
+    private volatile int currentRewardCode = 0; // Store reward code for callback
+    private volatile int currentInterstitialCode = 0; // Store interstitial code for callback
 
     // Thread-safe singleton pattern
     public static AdmobHelper getInstance() {
@@ -291,6 +296,11 @@ public class AdmobHelper {
                     bannerAdLoaded = true;
                 }
                 Log.d(TAG, "BANNER onAdLoaded");
+                
+                IAdmobAdListener callback = adsEventCallback;
+                if (callback != null) {
+                    callback.onBannerLoaded();
+                }
             }
 
             @Override
@@ -670,6 +680,14 @@ public class AdmobHelper {
         }
     }
 
+    /**
+     * Check if MREC ad is loaded and ready to display
+     * @return true if MREC ad is loaded, false otherwise
+     */
+    public boolean isMrecLoaded() {
+        return mrecAdLoaded;
+    }
+
     // ==================== INTERSTITIAL AD METHODS ====================
     
     /**
@@ -695,6 +713,11 @@ public class AdmobHelper {
     public void loadInterstitial() {
         if (_interstitialAdsId == null) {
             Log.w(TAG, "Interstitial ad unit ID is not set. Call initInterstitial() first.");
+            return;
+        }
+        
+        if (!interstitialAdsEnabled) {
+            Log.d(TAG, "Interstitial ads are disabled");
             return;
         }
         
@@ -751,6 +774,11 @@ public class AdmobHelper {
                             onAdPaid("INTERSTITIAL", adValue, _interstitialAdsId, adSourceName);
                         });
                         
+                        IAdmobAdListener callback = adsEventCallback;
+                        if (callback != null) {
+                            callback.onInterstitialLoaded();
+                        }
+                        
                         ResponseInfo responseInfo = ad.getResponseInfo();
                         if (responseInfo != null) {
                             Log.d(TAG, "INTERSTITIAL adapter class name: " + responseInfo.getMediationAdapterClassName());
@@ -775,7 +803,24 @@ public class AdmobHelper {
      * Show interstitial ad
      * Follows Google's best practice: check if ad is ready before showing
      */
-    public void showInterstitial() {
+    public void showInterstitial(int interstitialCode) {
+        if (!interstitialAdsEnabled) {
+            Log.d(TAG, "Interstitial ads are disabled, cannot show");
+            return;
+        }
+        
+        // Check interval requirement
+        if (interstitialIntervalMs > 0 && lastInterstitialDismissedTime > 0) {
+            long currentTime = System.currentTimeMillis();
+            long timeSinceLastDismissed = currentTime - lastInterstitialDismissedTime;
+            
+            if (timeSinceLastDismissed < interstitialIntervalMs) {
+                long remainingMs = interstitialIntervalMs - timeSinceLastDismissed;
+                Log.d(TAG, "Interstitial interval not met. Remaining time: " + (remainingMs / 1000) + " seconds");
+                return;
+            }
+        }
+        
         InterstitialAd ad = getInterstitialAd();
         
         if (ad == null) {
@@ -790,6 +835,9 @@ public class AdmobHelper {
             Log.w(TAG, "Cannot show interstitial - no valid activity");
             return;
         }
+        
+        // Store interstitial code for callback
+        currentInterstitialCode = interstitialCode;
         
         runSafelyOnUiThread(currentActivity, () -> {
             InterstitialAd interstitial = getInterstitialAd();
@@ -811,7 +859,11 @@ public class AdmobHelper {
                 
                 @Override
                 public void onAdDismissedFullScreenContent() {
-                    Log.d(TAG, "Interstitial ad dismissed");
+                    Log.d(TAG, "Interstitial ad dismissed with code: " + currentInterstitialCode);
+                    
+                    // Record dismiss time for interval tracking
+                    lastInterstitialDismissedTime = System.currentTimeMillis();
+                    
                     synchronized (AdmobHelper.this) {
                         interstitialAdLoaded = false;
                     }
@@ -820,6 +872,7 @@ public class AdmobHelper {
                     IAdmobAdListener callback = adsEventCallback;
                     if (callback != null) {
                         callback.onAdDismissedFullScreenContent(1); // 1 for interstitial
+                        callback.onInterstitialDismissed(currentInterstitialCode); // Pass interstitial code
                     }
                     
                     // Preload next interstitial
@@ -864,6 +917,94 @@ public class AdmobHelper {
      */
     public boolean isInterstitialReady() {
         return interstitialAdLoaded && getInterstitialAd() != null;
+    }
+    
+    /**
+     * Disable interstitial ads
+     * When disabled, interstitial ads will not load or show
+     */
+    public void disableInterstitial() {
+        interstitialAdsEnabled = false;
+        Log.d(TAG, "Interstitial ads disabled");
+    }
+    
+    /**
+     * Enable interstitial ads
+     * When enabled, interstitial ads can load and show normally
+     */
+    public void enableInterstitial() {
+        interstitialAdsEnabled = true;
+        Log.d(TAG, "Interstitial ads enabled");
+    }
+    
+    /**
+     * Check if interstitial ads are currently enabled
+     * @return true if enabled, false if disabled
+     */
+    public boolean isInterstitialEnabled() {
+        return interstitialAdsEnabled;
+    }
+    
+    /**
+     * Set minimum interval between interstitial ads
+     * The interval is measured from when the previous ad was dismissed
+     * @param intervalMs Minimum interval in milliseconds (0 = no interval limit)
+     */
+    public void setInterstitialInterval(long intervalMs) {
+        interstitialIntervalMs = intervalMs;
+        Log.d(TAG, "Interstitial interval set to: " + (intervalMs / 1000) + " seconds");
+    }
+    
+    /**
+     * Get current interstitial interval setting
+     * @return Current interval in milliseconds
+     */
+    public long getInterstitialInterval() {
+        return interstitialIntervalMs;
+    }
+    
+    /**
+     * Get remaining time until next interstitial can be shown
+     * @return Remaining time in milliseconds (0 if can show now)
+     */
+    public long getRemainingInterstitialInterval() {
+        if (interstitialIntervalMs <= 0 || lastInterstitialDismissedTime <= 0) {
+            return 0;
+        }
+        
+        long currentTime = System.currentTimeMillis();
+        long timeSinceLastDismissed = currentTime - lastInterstitialDismissedTime;
+        long remaining = interstitialIntervalMs - timeSinceLastDismissed;
+        
+        return remaining > 0 ? remaining : 0;
+    }
+    
+    /**
+     * Check if interstitial can be shown based on interval
+     * @return true if interval requirement is met or no interval is set
+     */
+    public boolean canShowInterstitialByInterval() {
+        if (interstitialIntervalMs <= 0) {
+            return true; // No interval limit
+        }
+        
+        if (lastInterstitialDismissedTime <= 0) {
+            return true; // No previous ad shown
+        }
+        
+        long currentTime = System.currentTimeMillis();
+        long timeSinceLastDismissed = currentTime - lastInterstitialDismissedTime;
+        
+        return timeSinceLastDismissed >= interstitialIntervalMs;
+    }
+    
+    /**
+     * Reset interstitial interval timer
+     * Useful when you want to manually reset the timer (e.g., after level complete)
+     */
+    public void resetInterstitialInterval() {
+        lastInterstitialDismissedTime = 0;
+        Log.d(TAG, "Interstitial interval timer reset");
     }
 
     // ==================== REWARDED AD METHODS ====================
@@ -947,6 +1088,11 @@ public class AdmobHelper {
                             onAdPaid("REWARDED", adValue, _rewardedAdsId, adSourceName);
                         });
                         
+                        IAdmobAdListener callback = adsEventCallback;
+                        if (callback != null) {
+                            callback.onRewardedLoaded();
+                        }
+                        
                         ResponseInfo responseInfo = ad.getResponseInfo();
                         if (responseInfo != null) {
                             Log.d(TAG, "REWARDED adapter class name: " + responseInfo.getMediationAdapterClassName());
@@ -968,9 +1114,19 @@ public class AdmobHelper {
     }
     
     /**
-     * Show rewarded ad with reward listener
+     * Show rewarded ad with reward listener (backward compatibility)
      * User must complete the ad to receive reward
      * Follows Google's best practice: check if ad is ready before showing
+     */
+    public void showRewarded() {
+        showRewarded(0); // Default reward code
+    }
+    
+    /**
+     * Show rewarded ad with reward listener and custom reward code
+     * User must complete the ad to receive reward
+     * Follows Google's best practice: check if ad is ready before showing
+     * @param rewardCode Custom code to identify reward type, will be passed back in onUserEarnedReward
      */
     public void showRewarded(int rewardCode) {
         RewardedAd ad = getRewardedAd();
@@ -987,6 +1143,9 @@ public class AdmobHelper {
             Log.w(TAG, "Cannot show rewarded - no valid activity");
             return;
         }
+        
+        // Store reward code for callback
+        currentRewardCode = rewardCode;
         
         runSafelyOnUiThread(currentActivity, () -> {
             RewardedAd rewarded = getRewardedAd();
@@ -1057,11 +1216,11 @@ public class AdmobHelper {
                     // User earned the reward
                     int amount = rewardItem.getAmount();
                     String type = rewardItem.getType();
-                    Log.d(TAG, "User earned reward: " + amount + " " + type);
+                    Log.d(TAG, "User earned reward (code: " + currentRewardCode + "): " + amount + " " + type);
                     
                     IAdmobAdListener callback = adsEventCallback;
                     if (callback != null) {
-                        callback.onUserEarnedReward(type, amount);
+                        callback.onUserEarnedReward(currentRewardCode, type, amount);
                     }
                 }
             });
@@ -1165,6 +1324,11 @@ public class AdmobHelper {
                 AdView mrec = getMrecAdView();
                 if (mrec != null && mrec.getResponseInfo() != null) {
                     Log.d(TAG, "MREC adapter class name: " + mrec.getResponseInfo().getMediationAdapterClassName());
+                }
+                
+                IAdmobAdListener callback = adsEventCallback;
+                if (callback != null) {
+                    callback.onMrecLoaded();
                 }
             }
 
@@ -1313,6 +1477,12 @@ public class AdmobHelper {
 
         if (aoaBlocker) {
             Log.d(TAG, "AOA IS BLOCKED!");
+            return;
+        }
+
+        if(blockAOACount > 0) {
+            Log.d(TAG, "AOA IS BLOCKED! (COUNT SHOW AOA: " + blockAOACount + ")");
+            blockAOACount -=1;
             return;
         }
 

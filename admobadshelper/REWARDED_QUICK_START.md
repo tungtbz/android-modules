@@ -19,8 +19,9 @@ adHelper.loadRewarded(); // Preload
 ```java
 adHelper.SetAdsCallback(new IAdmobAdListener() {
     @Override
-    public void onUserEarnedReward(String type, int amount) {
+    public void onUserEarnedReward(int rewardCode, String type, int amount) {
         // CHỈ cộng thưởng ở đây!
+        // rewardCode: custom code passed when showing ad
         userCoins += amount;
         updateUI();
         showMessage("Earned " + amount + " " + type);
@@ -37,7 +38,11 @@ adHelper.SetAdsCallback(new IAdmobAdListener() {
 button.setText("Watch Ad to Earn 50 Coins");
 button.setOnClickListener(v -> {
     if (adHelper.isRewardedReady()) {
+        // Method 1: Simple (backward compatible)
         adHelper.showRewarded();
+        
+        // Method 2: With reward code to identify reward type
+        // adHelper.showRewarded(REWARD_CODE_COINS);
     } else {
         Toast.makeText(this, "Loading...", Toast.LENGTH_SHORT).show();
         adHelper.loadRewarded();
@@ -92,8 +97,9 @@ public class MainActivity extends AppCompatActivity {
     private void setupCallbacks() {
         adHelper.SetAdsCallback(new IAdmobAdListener() {
             @Override
-            public void onUserEarnedReward(String type, int amount) {
+            public void onUserEarnedReward(int rewardCode, String type, int amount) {
                 // User earned reward!
+                // rewardCode: to identify which reward was given
                 userCoins += amount;
                 updateCoinsDisplay();
                 Toast.makeText(MainActivity.this, 
@@ -186,8 +192,9 @@ public class MainActivity extends AppCompatActivity {
 ```java
 adHelper.SetAdsCallback(new IAdmobAdListener() {
     @Override
-    public void onUserEarnedReward(String type, int amount) {
+    public void onUserEarnedReward(int rewardCode, String type, int amount) {
         // QUAN TRỌNG: Cộng thưởng ở đây!
+        // rewardCode: custom code to identify reward type
         userCoins += amount;
     }
     
