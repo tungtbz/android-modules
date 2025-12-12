@@ -1,0 +1,161 @@
+{
+  "id": "admob_android_rewarded",
+  "title": "Tích hợp AdMob Rewarded trên Android",
+  "description": "Hướng dẫn tích hợp và hiển thị quảng cáo rewarded (thưởng) của Google AdMob trong ứng dụng Android (Java/Kotlin). Dựa trên tài liệu chính thức của Google.",
+  "reference": "https://developers.google.com/admob/android/rewarded",
+  "prerequisites": {
+    "sdk_version_min": "19.7.0",
+    "requirements": [
+      "Đã tích hợp Google Mobile Ads SDK vào project Android và hoàn thành phần Get started guide.",
+      "Gọi tất cả API của Mobile Ads SDK trên main thread.",
+      "Đã cấu hình app ID AdMob trong AndroidManifest hoặc ở bước khởi tạo SDK."
+    ],
+    "test_ad_unit_id": {
+      "note": "Luôn dùng test ad khi phát triển để tránh bị khóa tài khoản.",
+      "rewarded_android": "ca-app-pub-3940256099942544/5224354917"
+    }
+  },
+  "config": {
+    "ad_unit_id": {
+      "description": "Ad unit ID thực tế của rewarded trong ứng dụng, lấy từ AdMob console.",
+      "placeholder": "ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ"
+    }
+  },
+  "globals": {
+    "member_variables": [
+      {
+        "name": "private RewardedAd rewardedAd;",
+        "language": "java",
+        "usage": "Giữ reference cho quảng cáo rewarded đã load."
+      },
+      {
+        "name": "private boolean isLoadingRewardedAd = false;",
+        "language": "java",
+        "usage": "Flag tránh load trùng nhiều lần cùng lúc (tùy chọn)."
+      },
+      {
+        "name": "private var rewardedAd: RewardedAd? = null",
+        "language": "kotlin",
+        "usage": "Giữ reference cho quảng cáo rewarded đã load."
+      },
+      {
+        "name": "private var isLoadingRewardedAd: Boolean = false",
+        "language": "kotlin",
+        "usage": "Flag tránh load trùng nhiều lần cùng lúc (tùy chọn)."
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "always_use_test_ads",
+      "title": "Luôn sử dụng test ad khi phát triển",
+      "description": "Trong giai đoạn phát triển và test, luôn dùng test ad unit ID do Google cung cấp, sau đó thay bằng ad unit ID thật khi release.",
+      "details": {
+        "test_ad_unit_id_rewarded_android": "ca-app-pub-3940256099942544/5224354917"
+      }
+    },
+    {
+      "id": "load_rewarded_ad",
+      "title": "Load rewarded ad",
+      "description": "Sử dụng phương thức tĩnh RewardedAd.load(...) để load quảng cáo. Kết quả trả về qua RewardedAdLoadCallback.",
+      "notes": [
+        "Luôn gọi trên main thread.",
+        "Thường nên preload rewarded ad ngay từ onCreate hoặc khi vào màn cần dùng.",
+        "Rewarded ad là single-use: sau khi show xong phải load ad mới cho lần hiển thị tiếp theo."
+      ],
+      "code_samples": [
+        {
+          "language": "java",
+          "snippet": "private void loadRewardedAd() {\n    if (rewardedAd != null || isLoadingRewardedAd) {\n        return; // đã có hoặc đang load, không load lại\n    }\n\n    isLoadingRewardedAd = true;\n    AdRequest adRequest = new AdRequest.Builder().build();\n\n    RewardedAd.load(\n        this,\n        AD_UNIT_ID, // test: \"ca-app-pub-3940256099942544/5224354917\"\n        adRequest,\n        new RewardedAdLoadCallback() {\n            @Override\n            public void onAdLoaded(@NonNull RewardedAd ad) {\n                rewardedAd = ad;\n                isLoadingRewardedAd = false;\n                Log.d(TAG, \"Rewarded ad loaded\");\n            }\n\n            @Override\n            public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {\n                Log.w(TAG, \"Failed to load rewarded ad: \" + loadAdError.getMessage());\n                rewardedAd = null;\n                isLoadingRewardedAd = false;\n            }\n        }\n    );\n}"
+        },
+        {
+          "language": "kotlin",
+          "snippet": "private fun loadRewardedAd() {\n    if (rewardedAd != null || isLoadingRewardedAd) {\n        return // đã có hoặc đang load\n    }\n\n    isLoadingRewardedAd = true\n    val adRequest = AdRequest.Builder().build()\n\n    RewardedAd.load(\n        this,\n        AD_UNIT_ID, // test: \"ca-app-pub-3940256099942544/5224354917\"\n        adRequest,\n        object : RewardedAdLoadCallback() {\n            override fun onAdLoaded(ad: RewardedAd) {\n                rewardedAd = ad\n                isLoadingRewardedAd = false\n                Log.d(TAG, \"Rewarded ad loaded\")\n            }\n\n            override fun onAdFailedToLoad(error: LoadAdError) {\n                Log.w(TAG, \"Failed to load rewarded ad: ${error.message}\")\n                rewardedAd = null\n                isLoadingRewardedAd = false\n            }\n        }\n    )\n}"
+        }
+      ]
+    },
+    {
+      "id": "set_full_screen_content_callback",
+      "title": "Thiết lập FullScreenContentCallback",
+      "description": "Thiết lập callback để nhận các event liên quan đến việc hiển thị rewarded ad: show, dismiss, click, impression, lỗi hiển thị.",
+      "important_points": [
+        "Khi quảng cáo bị đóng hoặc hiển thị lỗi, phải set rewardedAd = null để tránh show lại.",
+        "Trong onAdDismissedFullScreenContent, thường tiến hành load lại một quảng cáo mới (preload cho lần sau)."
+      ],
+      "code_samples": [
+        {
+          "language": "java",
+          "snippet": "private void attachRewardedFullScreenCallback() {\n    if (rewardedAd == null) return;\n\n    rewardedAd.setFullScreenContentCallback(new FullScreenContentCallback() {\n        @Override\n        public void onAdShowedFullScreenContent() {\n            Log.d(TAG, \"Rewarded ad showed\");\n        }\n\n        @Override\n        public void onAdDismissedFullScreenContent() {\n            Log.d(TAG, \"Rewarded ad dismissed\");\n            rewardedAd = null; // single-use\n            loadRewardedAd(); // preload cho lần sau\n        }\n\n        @Override\n        public void onAdFailedToShowFullScreenContent(AdError adError) {\n            Log.w(TAG, \"Rewarded failed to show: \" + adError.getMessage());\n            rewardedAd = null;\n        }\n\n        @Override\n        public void onAdImpression() {\n            Log.d(TAG, \"Rewarded impression recorded\");\n        }\n\n        @Override\n        public void onAdClicked() {\n            Log.d(TAG, \"Rewarded clicked\");\n        }\n    });\n}"
+        },
+        {
+          "language": "kotlin",
+          "snippet": "private fun attachRewardedFullScreenCallback() {\n    rewardedAd?.fullScreenContentCallback = object : FullScreenContentCallback() {\n        override fun onAdShowedFullScreenContent() {\n            Log.d(TAG, \"Rewarded ad showed\")\n        }\n\n        override fun onAdDismissedFullScreenContent() {\n            Log.d(TAG, \"Rewarded ad dismissed\")\n            rewardedAd = null\n            loadRewardedAd() // preload cho lần sau\n        }\n\n        override fun onAdFailedToShowFullScreenContent(adError: AdError) {\n            Log.w(TAG, \"Rewarded failed to show: ${adError.message}\")\n            rewardedAd = null\n        }\n\n        override fun onAdImpression() {\n            Log.d(TAG, \"Rewarded impression recorded\")\n        }\n\n        override fun onAdClicked() {\n            Log.d(TAG, \"Rewarded clicked\")\n        }\n    }\n}"
+        }
+      ]
+    },
+    {
+      "id": "handle_reward_callback",
+      "title": "Xử lý reward (OnUserEarnedRewardListener)",
+      "description": "Khi người dùng xem đủ điều kiện, callback OnUserEarnedRewardListener sẽ được gọi để bạn cộng thưởng cho người dùng.",
+      "notes": [
+        "Chỉ cộng thưởng sau khi onUserEarnedReward được gọi.",
+        "RewardItem cung cấp type (string) và amount (int), bạn có thể map sang logic game."
+      ],
+      "code_samples": [
+        {
+          "language": "java",
+          "snippet": "private final OnUserEarnedRewardListener rewardListener = new OnUserEarnedRewardListener() {\n    @Override\n    public void onUserEarnedReward(@NonNull RewardItem rewardItem) {\n        int amount = rewardItem.getAmount();\n        String type = rewardItem.getType();\n        Log.d(TAG, \"User earned reward: \" + amount + \" \" + type);\n        // TODO: cộng thưởng cho user (ví dụ: +coins, +lives, unlock item...)\n        grantRewardToUser(amount, type);\n    }\n};"
+        },
+        {
+          "language": "kotlin",
+          "snippet": "private val rewardListener = OnUserEarnedRewardListener { rewardItem ->\n    val amount = rewardItem.amount\n    val type = rewardItem.type\n    Log.d(TAG, \"User earned reward: $amount $type\")\n    // TODO: cộng thưởng cho user\n    grantRewardToUser(amount, type)\n}"
+        }
+      ]
+    },
+    {
+      "id": "show_rewarded_ad",
+      "title": "Hiển thị rewarded ad",
+      "description": "Hiển thị quảng cáo khi user chủ động opt-in, ví dụ: bấm nút \"Xem quảng cáo để nhận X\".",
+      "notes": [
+        "Trước khi show, cần kiểm tra rewardedAd khác null.",
+        "Nếu chưa có hoặc đang load, có thể báo cho user chờ hoặc bỏ qua.",
+        "Rewarded ad là full-screen nên nên pause game và disable input dưới nền."
+      ],
+      "code_samples": [
+        {
+          "language": "java",
+          "snippet": "private void showRewardedAdIfAvailable() {\n    if (rewardedAd == null) {\n        Log.d(TAG, \"The rewarded ad wasn't ready yet.\");\n        loadRewardedAd();\n        return;\n    }\n\n    attachRewardedFullScreenCallback();\n\n    rewardedAd.show(this, rewardListener);\n    // Sau khi show, rewardedAd sẽ bị set null trong FullScreenContentCallback khi đóng\n}"
+        },
+        {
+          "language": "kotlin",
+          "snippet": "private fun showRewardedAdIfAvailable() {\n    val ad = rewardedAd\n    if (ad == null) {\n        Log.d(TAG, \"The rewarded ad wasn't ready yet.\")\n        loadRewardedAd()\n        return\n    }\n\n    attachRewardedFullScreenCallback()\n\n    ad.show(this, rewardListener)\n    // rewardedAd sẽ được set null trong callback khi ad bị dismiss\n}"
+        }
+      ]
+    },
+    {
+      "id": "recommended_flow",
+      "title": "Flow khuyến nghị tích hợp trong Activity/Game",
+      "description": "Quy trình tích hợp cơ bản trong một Activity hoặc màn chơi sử dụng rewarded ad.",
+      "flow": [
+        "Trong onCreate hoặc khi vào màn game: gọi loadRewardedAd() để preload.",
+        "Khi user bấm nút \"Xem quảng cáo để nhận thưởng\": gọi showRewardedAdIfAvailable().",
+        "Trong onUserEarnedReward: cộng thưởng cho user.",
+        "Trong onAdDismissedFullScreenContent: set rewardedAd = null và loadRewardedAd() lại cho lần tiếp theo."
+      ]
+    },
+    {
+      "id": "best_practices",
+      "title": "Best practices khi dùng rewarded ad",
+      "description": "Các lưu ý để không làm giảm trải nghiệm người dùng và tuân thủ chính sách.",
+      "items": [
+        "Rõ ràng trong messaging: nói cho user biết họ sẽ nhận được phần thưởng gì khi xem quảng cáo.",
+        "Chỉ hiển thị rewarded khi user chủ động opt-in (bấm nút/đồng ý).",
+        "Preload quảng cáo sớm để khi user bấm nút không phải chờ load lâu.",
+        "Không ép buộc user xem rewarded ad để tiếp tục sử dụng app (tránh vi phạm chính sách).",
+        "Không spam: giới hạn số lần offer rewarded ad trong một khoảng thời gian.",
+        "Ads hết hạn sau khoảng ~1 giờ, nên reload định kỳ nếu bạn giữ reference lâu.",
+        "Tạm dừng gameplay, nhạc nền hoặc action nặng khi quảng cáo hiển thị; khôi phục khi user đóng ad."
+      ]
+    }
+  ]
+}
