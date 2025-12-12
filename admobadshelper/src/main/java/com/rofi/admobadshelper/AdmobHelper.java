@@ -91,16 +91,16 @@ public class AdmobHelper {
     // Keep WeakReference to current activity to avoid memory leaks
     private volatile WeakReference<Activity> currentActivityRef;
     
-    // Interstitial Ad - Use WeakReference to prevent memory leaks
-    private volatile WeakReference<InterstitialAd> interstitialAdRef;
+    // Interstitial Ad - Use strong reference (single-use ad, cleared after show)
+    private volatile InterstitialAd interstitialAd;
     private volatile boolean interstitialAdLoading = false;
     private volatile boolean interstitialAdLoaded = false;
     private volatile boolean interstitialAdsEnabled = true; // Control interstitial ad display
     private volatile long lastInterstitialDismissedTime = 0; // Track when last interstitial was dismissed
     private volatile long interstitialIntervalMs = 0; // Minimum interval between interstitials (0 = no limit)
     
-    // Rewarded Ad - Use WeakReference to prevent memory leaks
-    private volatile WeakReference<RewardedAd> rewardedAdRef;
+    // Rewarded Ad - Use strong reference (single-use ad, cleared after show)
+    private volatile RewardedAd rewardedAd;
     private volatile boolean rewardedAdLoading = false;
     private volatile boolean rewardedAdLoaded = false;
     private volatile int currentRewardCode = 0; // Store reward code for callback
@@ -154,8 +154,7 @@ public class AdmobHelper {
         mrecAdViewRef = new WeakReference<>(null);
         cBannerViewRef = new WeakReference<>(null);
         currentActivityRef = new WeakReference<>(null);
-        interstitialAdRef = new WeakReference<>(null);
-        rewardedAdRef = new WeakReference<>(null);
+        // interstitialAd and rewardedAd are now strong references, initialized as null by default
     }
     
     /**
@@ -197,41 +196,39 @@ public class AdmobHelper {
     }
     
     /**
-     * Helper method to safely get Interstitial Ad from WeakReference
+     * Helper method to safely get Interstitial Ad with synchronization
+     * Thread-safe access to interstitial ad instance
      */
     @Nullable
-    private InterstitialAd getInterstitialAd() {
-        return interstitialAdRef != null ? interstitialAdRef.get() : null;
+    private synchronized InterstitialAd getInterstitialAd() {
+        return interstitialAd;
     }
     
     /**
-     * Helper method to safely set Interstitial Ad with WeakReference
+     * Helper method to safely set Interstitial Ad with synchronization
+     * Thread-safe setter that also updates the loaded flag
      */
-    private void setInterstitialAd(@Nullable InterstitialAd interstitialAd) {
-        if (interstitialAd != null) {
-            interstitialAdRef = new WeakReference<>(interstitialAd);
-        } else {
-            interstitialAdRef = new WeakReference<>(null);
-        }
+    private synchronized void setInterstitialAd(@Nullable InterstitialAd ad) {
+        this.interstitialAd = ad;
+        this.interstitialAdLoaded = (ad != null);
     }
     
     /**
-     * Helper method to safely get Rewarded Ad from WeakReference
+     * Helper method to safely get Rewarded Ad with synchronization
+     * Thread-safe access to rewarded ad instance
      */
     @Nullable
-    private RewardedAd getRewardedAd() {
-        return rewardedAdRef != null ? rewardedAdRef.get() : null;
+    private synchronized RewardedAd getRewardedAd() {
+        return rewardedAd;
     }
     
     /**
-     * Helper method to safely set Rewarded Ad with WeakReference
+     * Helper method to safely set Rewarded Ad with synchronization
+     * Thread-safe setter that also updates the loaded flag
      */
-    private void setRewardedAd(@Nullable RewardedAd rewardedAd) {
-        if (rewardedAd != null) {
-            rewardedAdRef = new WeakReference<>(rewardedAd);
-        } else {
-            rewardedAdRef = new WeakReference<>(null);
-        }
+    private synchronized void setRewardedAd(@Nullable RewardedAd ad) {
+        this.rewardedAd = ad;
+        this.rewardedAdLoaded = (ad != null);
     }
     
     /**
@@ -681,6 +678,14 @@ public class AdmobHelper {
     }
 
     /**
+     * Check if Banner ad is loaded and ready to display
+     * @return true if Banner ad is loaded, false otherwise
+     */
+    public boolean isBannerLoaded() {
+        return bannerAdLoaded;
+    }
+
+    /**
      * Check if MREC ad is loaded and ready to display
      * @return true if MREC ad is loaded, false otherwise
      */
@@ -713,11 +718,6 @@ public class AdmobHelper {
     public void loadInterstitial() {
         if (_interstitialAdsId == null) {
             Log.w(TAG, "Interstitial ad unit ID is not set. Call initInterstitial() first.");
-            return;
-        }
-        
-        if (!interstitialAdsEnabled) {
-            Log.d(TAG, "Interstitial ads are disabled");
             return;
         }
         
@@ -802,6 +802,7 @@ public class AdmobHelper {
     /**
      * Show interstitial ad
      * Follows Google's best practice: check if ad is ready before showing
+     * Thread-safe implementation with double-check pattern
      */
     public void showInterstitial(int interstitialCode) {
         if (!interstitialAdsEnabled) {
@@ -821,13 +822,16 @@ public class AdmobHelper {
             }
         }
         
-        InterstitialAd ad = getInterstitialAd();
-        
-        if (ad == null) {
-            Log.d(TAG, "Interstitial ad is not ready yet");
-            // Preload for next time
-            loadInterstitial();
-            return;
+        // Thread-safe check with synchronized block
+        InterstitialAd ad;
+        synchronized (this) {
+            ad = interstitialAd;
+            if (ad == null || !interstitialAdLoaded) {
+                Log.d(TAG, "Interstitial ad is not ready yet");
+                // Preload for next time
+                loadInterstitial();
+                return;
+            }
         }
         
         Activity currentActivity = getCurrentActivity();
@@ -840,10 +844,14 @@ public class AdmobHelper {
         currentInterstitialCode = interstitialCode;
         
         runSafelyOnUiThread(currentActivity, () -> {
-            InterstitialAd interstitial = getInterstitialAd();
-            if (interstitial == null) {
-                Log.d(TAG, "Interstitial ad was garbage collected");
-                return;
+            // Double-check in UI thread with synchronized access
+            InterstitialAd interstitial;
+            synchronized (AdmobHelper.this) {
+                interstitial = interstitialAd;
+                if (interstitial == null) {
+                    Log.d(TAG, "Interstitial ad is null in UI thread");
+                    return;
+                }
             }
             
             // Set FullScreenContentCallback
@@ -864,10 +872,8 @@ public class AdmobHelper {
                     // Record dismiss time for interval tracking
                     lastInterstitialDismissedTime = System.currentTimeMillis();
                     
-                    synchronized (AdmobHelper.this) {
-                        interstitialAdLoaded = false;
-                    }
-                    setInterstitialAd(null); // Clear reference to prevent showing again
+                    // Clear reference in synchronized block
+                    setInterstitialAd(null); // This also sets interstitialAdLoaded = false
                     
                     IAdmobAdListener callback = adsEventCallback;
                     if (callback != null) {
@@ -882,10 +888,8 @@ public class AdmobHelper {
                 @Override
                 public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
                     Log.w(TAG, "Interstitial failed to show: " + adError.getMessage());
-                    synchronized (AdmobHelper.this) {
-                        interstitialAdLoaded = false;
-                    }
-                    setInterstitialAd(null);
+                    // Clear reference in synchronized block
+                    setInterstitialAd(null); // This also sets interstitialAdLoaded = false
                     
                     // Try to load again
                     loadInterstitial();
@@ -913,10 +917,11 @@ public class AdmobHelper {
     
     /**
      * Check if interstitial ad is ready to show
+     * Thread-safe check with synchronized access
      * @return true if ad is loaded and ready
      */
-    public boolean isInterstitialReady() {
-        return interstitialAdLoaded && getInterstitialAd() != null;
+    public synchronized boolean isInterstitialReady() {
+        return interstitialAdLoaded && interstitialAd != null;
     }
     
     /**
@@ -1126,16 +1131,20 @@ public class AdmobHelper {
      * Show rewarded ad with reward listener and custom reward code
      * User must complete the ad to receive reward
      * Follows Google's best practice: check if ad is ready before showing
+     * Thread-safe implementation with double-check pattern
      * @param rewardCode Custom code to identify reward type, will be passed back in onUserEarnedReward
      */
     public void showRewarded(int rewardCode) {
-        RewardedAd ad = getRewardedAd();
-        
-        if (ad == null) {
-            Log.d(TAG, "Rewarded ad is not ready yet");
-            // Preload for next time
-            loadRewarded();
-            return;
+        // Thread-safe check with synchronized block
+        RewardedAd ad;
+        synchronized (this) {
+            ad = rewardedAd;
+            if (ad == null || !rewardedAdLoaded) {
+                Log.d(TAG, "Rewarded ad is not ready yet");
+                // Preload for next time
+                loadRewarded();
+                return;
+            }
         }
         
         Activity currentActivity = getCurrentActivity();
@@ -1148,10 +1157,14 @@ public class AdmobHelper {
         currentRewardCode = rewardCode;
         
         runSafelyOnUiThread(currentActivity, () -> {
-            RewardedAd rewarded = getRewardedAd();
-            if (rewarded == null) {
-                Log.d(TAG, "Rewarded ad was garbage collected");
-                return;
+            // Double-check in UI thread with synchronized access
+            RewardedAd rewarded;
+            synchronized (AdmobHelper.this) {
+                rewarded = rewardedAd;
+                if (rewarded == null) {
+                    Log.d(TAG, "Rewarded ad is null in UI thread");
+                    return;
+                }
             }
             
             // Set FullScreenContentCallback
@@ -1168,10 +1181,8 @@ public class AdmobHelper {
                 @Override
                 public void onAdDismissedFullScreenContent() {
                     Log.d(TAG, "Rewarded ad dismissed");
-                    synchronized (AdmobHelper.this) {
-                        rewardedAdLoaded = false;
-                    }
-                    setRewardedAd(null); // Single-use: clear reference after dismiss
+                    // Clear reference in synchronized block
+                    setRewardedAd(null); // Single-use: this also sets rewardedAdLoaded = false
                     
                     IAdmobAdListener callback = adsEventCallback;
                     if (callback != null) {
@@ -1185,10 +1196,8 @@ public class AdmobHelper {
                 @Override
                 public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
                     Log.w(TAG, "Rewarded failed to show: " + adError.getMessage());
-                    synchronized (AdmobHelper.this) {
-                        rewardedAdLoaded = false;
-                    }
-                    setRewardedAd(null);
+                    // Clear reference in synchronized block
+                    setRewardedAd(null); // This also sets rewardedAdLoaded = false
                     
                     // Try to load again
                     loadRewarded();
@@ -1229,16 +1238,20 @@ public class AdmobHelper {
     
     /**
      * Check if rewarded ad is ready to show
+     * Thread-safe check with synchronized access
      * @return true if ad is loaded and ready
      */
-    public boolean isRewardedReady() {
-        return rewardedAdLoaded && getRewardedAd() != null;
+    public synchronized boolean isRewardedReady() {
+        return rewardedAdLoaded && rewardedAd != null;
     }
 
     public void bypassConsentFlow(Activity activity) {
         googleMobileAdsConsentManager = GoogleMobileAdsConsentManager.getInstance(activity.getApplicationContext());
         googleMobileAdsConsentManager.bypassConsentFlow();
         consentCode = 0;
+
+        //force init sdk
+        initializeMobileAdsSdk(activity);
     }
 
     public int getConsentCode() {
@@ -1266,7 +1279,7 @@ public class AdmobHelper {
             }
         });
 
-        // This sample attempts to load ads using consent obtained in the previous session.
+        // attempts to load ads using consent obtained in the previous session.
         if (googleMobileAdsConsentManager.canRequestAds()) {
             initializeMobileAdsSdk(activity);
         }
@@ -1616,8 +1629,8 @@ public class AdmobHelper {
             _appOpenAd = null;
             setBannerAdView(null);
             setMrecAdView(null);
-            setInterstitialAd(null);
-            setRewardedAd(null);
+            setInterstitialAd(null); // Clears strong reference
+            setRewardedAd(null); // Clears strong reference
             setCurrentActivity(null);
             
             // Clear callbacks
