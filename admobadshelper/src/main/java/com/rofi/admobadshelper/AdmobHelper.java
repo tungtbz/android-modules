@@ -148,6 +148,10 @@ public class AdmobHelper {
     private volatile boolean mrecAdLoaded;
     private volatile boolean bannerAdLoaded;
     
+    // Logical state tracking - desired visibility state
+    private volatile boolean bannerLogicallyVisible = false;
+    private volatile boolean mrecLogicallyVisible = false;
+    
     // Thread-safe counters using volatile
     private volatile int blockAOACount;
 
@@ -317,6 +321,19 @@ public class AdmobHelper {
                 resetBannerRetryCounter();
                 
                 Log.d(TAG, "BANNER onAdLoaded");
+                
+                // Check logical state and apply visibility accordingly
+                AdView banner = getBannerAdView();
+                if (banner != null) {
+                    if (bannerLogicallyVisible) {
+                        Log.d(TAG, "BANNER onAdLoaded - logical state is SHOW, displaying ad");
+                        banner.resume();
+                        banner.setVisibility(View.VISIBLE);
+                    } else {
+                        Log.d(TAG, "BANNER onAdLoaded - logical state is HIDE, keeping ad hidden");
+                        banner.setVisibility(View.GONE);
+                    }
+                }
                 
                 IAdmobAdListener callback = adsEventCallback;
                 if (callback != null) {
@@ -625,28 +642,38 @@ public class AdmobHelper {
     }
 
     public void showBanner() {
+        // Set logical state to visible
+        bannerLogicallyVisible = true;
+        
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
                 AdView banner = getBannerAdView();
-                if (bannerAdLoaded && banner != null && banner.getVisibility() == View.GONE) {
-                    Log.d(TAG, "showBanner");
+                if (banner != null && bannerAdLoaded && banner.getVisibility() == View.GONE) {
+                    Log.d(TAG, "showBanner - ad loaded, showing now");
                     banner.resume();
                     banner.setVisibility(View.VISIBLE);
+                } else if (banner != null && !bannerAdLoaded) {
+                    Log.d(TAG, "showBanner - ad not loaded yet, will auto-show when loaded");
                 }
             });
         }
     }
 
     public void HideBanner() {
+        // Set logical state to hidden
+        bannerLogicallyVisible = false;
+        
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
                 AdView banner = getBannerAdView();
-                if (bannerAdLoaded && banner != null && banner.getVisibility() == View.VISIBLE) {
-                    Log.d(TAG, "HideBanner");
+                if (banner != null && banner.getVisibility() == View.VISIBLE) {
+                    Log.d(TAG, "HideBanner - hiding now");
                     banner.pause();
                     banner.setVisibility(View.GONE);
+                } else if (banner != null && !bannerAdLoaded) {
+                    Log.d(TAG, "HideBanner - ad not loaded yet, will stay hidden when loaded");
                 }
             });
         }
@@ -821,26 +848,38 @@ public class AdmobHelper {
     }
 
     public void ShowMrec() {
+        // Set logical state to visible
+        mrecLogicallyVisible = true;
+        
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
                 AdView mrec = getMrecAdView();
                 if (mrec != null && mrecAdLoaded && mrec.getVisibility() == View.GONE) {
+                    Log.d(TAG, "ShowMrec - ad loaded, showing now");
                     mrec.setVisibility(View.VISIBLE);
                     mrec.resume();
+                } else if (mrec != null && !mrecAdLoaded) {
+                    Log.d(TAG, "ShowMrec - ad not loaded yet, will auto-show when loaded");
                 }
             });
         }
     }
 
     public void HideMrec() {
+        // Set logical state to hidden
+        mrecLogicallyVisible = false;
+        
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
                 AdView mrec = getMrecAdView();
                 if (mrec != null && mrec.getVisibility() == View.VISIBLE) {
+                    Log.d(TAG, "HideMrec - hiding now");
                     mrec.setVisibility(View.GONE);
                     mrec.pause();
+                } else if (mrec != null && !mrecAdLoaded) {
+                    Log.d(TAG, "HideMrec - ad not loaded yet, will stay hidden when loaded");
                 }
             });
         }
@@ -1523,6 +1562,18 @@ public class AdmobHelper {
                     Log.d(TAG, "MREC adapter class name: " + mrec.getResponseInfo().getMediationAdapterClassName());
                 }
                 
+                // Check logical state and apply visibility accordingly
+                if (mrec != null) {
+                    if (mrecLogicallyVisible) {
+                        Log.d(TAG, "MREC onAdLoaded - logical state is SHOW, displaying ad");
+                        mrec.setVisibility(View.VISIBLE);
+                        mrec.resume();
+                    } else {
+                        Log.d(TAG, "MREC onAdLoaded - logical state is HIDE, keeping ad hidden");
+                        mrec.setVisibility(View.GONE);
+                    }
+                }
+                
                 IAdmobAdListener callback = adsEventCallback;
                 if (callback != null) {
                     callback.onMrecLoaded();
@@ -1838,6 +1889,10 @@ public class AdmobHelper {
             interstitialAdLoaded = false;
             rewardedAdLoading = false;
             rewardedAdLoaded = false;
+            
+            // Reset logical state variables
+            bannerLogicallyVisible = false;
+            mrecLogicallyVisible = false;
             
             Log.d(TAG, "AdmobHelper cleaned up");
         }
