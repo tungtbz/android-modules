@@ -255,3 +255,4 @@ public class ExampleActivity extends Activity {
  * 6. Verify AdView instances are released
  */
 
+

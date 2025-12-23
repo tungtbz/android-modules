@@ -40,6 +40,7 @@ import com.google.android.gms.ads.OnAdInspectorClosedListener;
 import com.google.android.gms.ads.OnPaidEventListener;
 import com.google.android.gms.ads.ResponseInfo;
 import com.google.android.gms.ads.appopen.AppOpenAd;
+import com.google.android.gms.ads.initialization.InitializationStatus;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import com.google.android.gms.ads.rewarded.RewardedAd;
@@ -105,6 +106,22 @@ public class AdmobHelper {
     private volatile boolean rewardedAdLoaded = false;
     private volatile int currentRewardCode = 0; // Store reward code for callback
     private volatile int currentInterstitialCode = 0; // Store interstitial code for callback
+    
+    // Auto-reload retry mechanism
+    private static final long BASE_RETRY_DELAY_MS = 5000; // 5 seconds base delay
+    private static final long MAX_RETRY_DELAY_MS = 300000; // 5 minutes max delay
+    
+    // Retry counters for each ad type
+    private volatile int bannerRetryCount = 0;
+    private volatile int mrecRetryCount = 0;
+    private volatile int interstitialRetryCount = 0;
+    private volatile int rewardedRetryCount = 0;
+    
+    // Handlers for scheduled retry tasks
+    private final Handler bannerRetryHandler = new Handler(Looper.getMainLooper());
+    private final Handler mrecRetryHandler = new Handler(Looper.getMainLooper());
+    private final Handler interstitialRetryHandler = new Handler(Looper.getMainLooper());
+    private final Handler rewardedRetryHandler = new Handler(Looper.getMainLooper());
 
     // Thread-safe singleton pattern
     public static AdmobHelper getInstance() {
@@ -283,6 +300,9 @@ public class AdmobHelper {
                 synchronized (AdmobHelper.this) {
                     bannerAdLoading = false;
                 }
+                
+                // Schedule auto-reload with exponential backoff
+                scheduleBannerReload();
             }
 
             @Override
@@ -292,6 +312,10 @@ public class AdmobHelper {
                     bannerAdLoading = false;
                     bannerAdLoaded = true;
                 }
+                
+                // Reset retry counter on successful load
+                resetBannerRetryCounter();
+                
                 Log.d(TAG, "BANNER onAdLoaded");
                 
                 IAdmobAdListener callback = adsEventCallback;
@@ -330,6 +354,151 @@ public class AdmobHelper {
     }
 
     Handler handler = new Handler(Looper.getMainLooper()); // Thread-safe handler
+    
+    /**
+     * Calculate exponential backoff delay for retry attempts
+     * @param attemptCount Number of retry attempts (0-based)
+     * @return Delay in milliseconds (5s, 10s, 20s, 40s, ..., capped at 5 minutes)
+     */
+    private long calculateRetryDelay(int attemptCount) {
+        long delay = BASE_RETRY_DELAY_MS * (long) Math.pow(2, attemptCount);
+        return Math.min(delay, MAX_RETRY_DELAY_MS);
+    }
+    
+    /**
+     * Schedule banner ad reload with exponential backoff
+     */
+    private void scheduleBannerReload() {
+        synchronized (this) {
+            bannerRetryCount++;
+        }
+        
+        long delay = calculateRetryDelay(bannerRetryCount);
+        Log.d(TAG, "Scheduling banner reload. Attempt: " + bannerRetryCount + ", Delay: " + (delay / 1000) + "s");
+        
+        // Notify callback about retry
+        IAdmobAdListener callback = adsEventCallback;
+        if (callback != null) {
+            callback.onBannerRetrying(bannerRetryCount, delay);
+        }
+        
+        bannerRetryHandler.postDelayed(() -> {
+            Log.d(TAG, "Retrying banner load (attempt " + bannerRetryCount + ")");
+            loadBanner(true);
+        }, delay);
+    }
+    
+    /**
+     * Schedule MREC ad reload with exponential backoff
+     */
+    private void scheduleMrecReload() {
+        synchronized (this) {
+            mrecRetryCount++;
+        }
+        
+        long delay = calculateRetryDelay(mrecRetryCount);
+        Log.d(TAG, "Scheduling MREC reload. Attempt: " + mrecRetryCount + ", Delay: " + (delay / 1000) + "s");
+        
+        // Notify callback about retry
+        IAdmobAdListener callback = adsEventCallback;
+        if (callback != null) {
+            callback.onMrecRetrying(mrecRetryCount, delay);
+        }
+        
+        mrecRetryHandler.postDelayed(() -> {
+            Log.d(TAG, "Retrying MREC load (attempt " + mrecRetryCount + ")");
+            loadMrec();
+        }, delay);
+    }
+    
+    /**
+     * Schedule interstitial ad reload with exponential backoff
+     */
+    private void scheduleInterstitialReload() {
+        synchronized (this) {
+            interstitialRetryCount++;
+        }
+        
+        long delay = calculateRetryDelay(interstitialRetryCount);
+        Log.d(TAG, "Scheduling interstitial reload. Attempt: " + interstitialRetryCount + ", Delay: " + (delay / 1000) + "s");
+        
+        // Notify callback about retry
+        IAdmobAdListener callback = adsEventCallback;
+        if (callback != null) {
+            callback.onInterstitialRetrying(interstitialRetryCount, delay);
+        }
+        
+        interstitialRetryHandler.postDelayed(() -> {
+            Log.d(TAG, "Retrying interstitial load (attempt " + interstitialRetryCount + ")");
+            loadInterstitial();
+        }, delay);
+    }
+    
+    /**
+     * Schedule rewarded ad reload with exponential backoff
+     */
+    private void scheduleRewardedReload() {
+        synchronized (this) {
+            rewardedRetryCount++;
+        }
+        
+        long delay = calculateRetryDelay(rewardedRetryCount);
+        Log.d(TAG, "Scheduling rewarded reload. Attempt: " + rewardedRetryCount + ", Delay: " + (delay / 1000) + "s");
+        
+        // Notify callback about retry
+        IAdmobAdListener callback = adsEventCallback;
+        if (callback != null) {
+            callback.onRewardedRetrying(rewardedRetryCount, delay);
+        }
+        
+        rewardedRetryHandler.postDelayed(() -> {
+            Log.d(TAG, "Retrying rewarded load (attempt " + rewardedRetryCount + ")");
+            loadRewarded();
+        }, delay);
+    }
+    
+    /**
+     * Reset retry counter for specific ad type on successful load
+     */
+    private void resetBannerRetryCounter() {
+        synchronized (this) {
+            if (bannerRetryCount > 0) {
+                Log.d(TAG, "Banner loaded successfully after " + bannerRetryCount + " retries");
+            }
+            bannerRetryCount = 0;
+        }
+        bannerRetryHandler.removeCallbacksAndMessages(null);
+    }
+    
+    private void resetMrecRetryCounter() {
+        synchronized (this) {
+            if (mrecRetryCount > 0) {
+                Log.d(TAG, "MREC loaded successfully after " + mrecRetryCount + " retries");
+            }
+            mrecRetryCount = 0;
+        }
+        mrecRetryHandler.removeCallbacksAndMessages(null);
+    }
+    
+    private void resetInterstitialRetryCounter() {
+        synchronized (this) {
+            if (interstitialRetryCount > 0) {
+                Log.d(TAG, "Interstitial loaded successfully after " + interstitialRetryCount + " retries");
+            }
+            interstitialRetryCount = 0;
+        }
+        interstitialRetryHandler.removeCallbacksAndMessages(null);
+    }
+    
+    private void resetRewardedRetryCounter() {
+        synchronized (this) {
+            if (rewardedRetryCount > 0) {
+                Log.d(TAG, "Rewarded loaded successfully after " + rewardedRetryCount + " retries");
+            }
+            rewardedRetryCount = 0;
+        }
+        rewardedRetryHandler.removeCallbacksAndMessages(null);
+    }
 
     protected static class Insets {
         int left;
@@ -756,6 +925,9 @@ public class AdmobHelper {
                         }
                         setInterstitialAd(ad);
                         
+                        // Reset retry counter on successful load
+                        resetInterstitialRetryCounter();
+                        
                         // Set OnPaidEventListener
                         ad.setOnPaidEventListener(adValue -> {
                             InterstitialAd interstitial = getInterstitialAd();
@@ -793,6 +965,9 @@ public class AdmobHelper {
                             interstitialAdLoaded = false;
                         }
                         setInterstitialAd(null);
+                        
+                        // Schedule auto-reload with exponential backoff
+                        scheduleInterstitialReload();
                     }
                 }
             );
@@ -1075,6 +1250,9 @@ public class AdmobHelper {
                         }
                         setRewardedAd(ad);
                         
+                        // Reset retry counter on successful load
+                        resetRewardedRetryCounter();
+                        
                         // Set OnPaidEventListener
                         ad.setOnPaidEventListener(adValue -> {
                             RewardedAd rewarded = getRewardedAd();
@@ -1112,6 +1290,9 @@ public class AdmobHelper {
                             rewardedAdLoaded = false;
                         }
                         setRewardedAd(null);
+                        
+                        // Schedule auto-reload with exponential backoff
+                        scheduleRewardedReload();
                     }
                 }
             );
@@ -1333,6 +1514,9 @@ public class AdmobHelper {
                     mrecAdLoading = false;
                     mrecAdLoaded = true;
                 }
+                
+                // Reset retry counter on successful load
+                resetMrecRetryCounter();
 
                 AdView mrec = getMrecAdView();
                 if (mrec != null && mrec.getResponseInfo() != null) {
@@ -1360,17 +1544,8 @@ public class AdmobHelper {
                 }
                 Log.d(TAG, "MREC onAdFailedToLoad" + "\nloadAdError: " + loadAdError.getMessage());
 
-                // Tải lại quảng cáo sau 30 giây
-                AdView mrec = getMrecAdView();
-                if (mrec != null) {
-                    mrec.postDelayed(() -> {
-                        AdView mrecRetry = getMrecAdView();
-                        if (mrecRetry != null) {
-                            AdRequest adRequest = new AdRequest.Builder().build();
-                            mrecRetry.loadAd(adRequest);
-                        }
-                    }, 30000);  // 30 giây
-                }
+                // Schedule auto-reload with exponential backoff
+                scheduleMrecReload();
             }
         });
         
@@ -1600,6 +1775,10 @@ public class AdmobHelper {
             loadBanner(true);
             loadInterstitial();
             loadRewarded();
+
+            if (adsEventCallback != null) {
+                adsEventCallback.onAdInitialized(null);
+            }
         });
     }
 
@@ -1613,6 +1792,18 @@ public class AdmobHelper {
             if (handler != null) {
                 handler.removeCallbacksAndMessages(null);
             }
+            
+            // Cancel all pending retry tasks
+            bannerRetryHandler.removeCallbacksAndMessages(null);
+            mrecRetryHandler.removeCallbacksAndMessages(null);
+            interstitialRetryHandler.removeCallbacksAndMessages(null);
+            rewardedRetryHandler.removeCallbacksAndMessages(null);
+            
+            // Reset retry counters
+            bannerRetryCount = 0;
+            mrecRetryCount = 0;
+            interstitialRetryCount = 0;
+            rewardedRetryCount = 0;
             
             // Destroy AdViews to release resources
             AdView banner = getBannerAdView();
