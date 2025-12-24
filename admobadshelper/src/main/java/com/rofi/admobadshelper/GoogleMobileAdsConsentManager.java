@@ -23,11 +23,11 @@ public final class GoogleMobileAdsConsentManager {
     private volatile boolean isConsentFlowFinished;
     private volatile boolean isBypass;
 
-    public boolean IsConsentFlowFinished() {
+    public boolean isConsentFlowFinished() {
         return isConsentFlowFinished;
     }
 
-    public boolean IsByPass() {
+    public boolean isByPass() {
         return isBypass;
     }
 
