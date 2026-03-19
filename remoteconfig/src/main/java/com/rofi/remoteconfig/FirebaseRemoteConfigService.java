@@ -7,7 +7,10 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.analytics.FirebaseAnalytics;
+import com.google.firebase.installations.FirebaseInstallations;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigValue;
@@ -47,6 +50,7 @@ public class FirebaseRemoteConfigService {
     }
 
     public void Init(Activity activity) {
+        setupIdForDebug(activity);
         mFirebaseRemoteConfig = FirebaseRemoteConfig.getInstance();
         FirebaseRemoteConfigSettings configSettings = new FirebaseRemoteConfigSettings.Builder()
                 .setMinimumFetchIntervalInSeconds(3600) // Thời gian fetch tối thiểu, có thể cấu hình
@@ -67,6 +71,27 @@ public class FirebaseRemoteConfigService {
                         Log.e(TAG, "setDefaultsAsync Failed!", task.getException());
                         // Nếu setDefaultsAsync thất bại, isConfigFetched vẫn là false.
                         // Cân nhắc thông báo lỗi hoặc xử lý phù hợp.
+                    }
+                });
+    }
+
+    private FirebaseAnalytics mFirebaseAnalytics;
+
+    private void setupIdForDebug(Activity activity) {
+        mFirebaseAnalytics = FirebaseAnalytics.getInstance(activity.getApplicationContext());
+
+        FirebaseInstallations.getInstance().getId()
+                .addOnCompleteListener(new OnCompleteListener<String>() {
+                    @Override
+                    public void onComplete(@NonNull Task<String> task) {
+                        if (task.isSuccessful()) {
+                            String dId = task.getResult();
+                            Log.d("Installations", "specific_device_id: " + task.getResult());
+                            mFirebaseAnalytics.setUserProperty("specific_device_id", dId);
+
+                        } else {
+                            Log.e("Installations", "Unable to get Installation ID");
+                        }
                     }
                 });
     }
@@ -115,21 +140,24 @@ public class FirebaseRemoteConfigService {
                             Log.d(TAG, "Cached (Boolean) " + key + ": " + value.asBoolean());
                             continue;
                         }
-                    } catch (IllegalArgumentException ignored) {}
+                    } catch (IllegalArgumentException ignored) {
+                    }
 
                     try {
                         // Thử parse long (cho số nguyên)
                         map.put(key, value.asLong());
                         Log.d(TAG, "Cached (Long) " + key + ": " + value.asLong());
                         continue;
-                    } catch (IllegalArgumentException ignored) {}
+                    } catch (IllegalArgumentException ignored) {
+                    }
 
                     try {
                         // Thử parse double (cho số thực)
                         map.put(key, value.asDouble());
                         Log.d(TAG, "Cached (Double) " + key + ": " + value.asDouble());
                         continue;
-                    } catch (IllegalArgumentException ignored) {}
+                    } catch (IllegalArgumentException ignored) {
+                    }
                 }
                 // Mặc định lưu dưới dạng String
                 map.put(key, value.asString());

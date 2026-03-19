@@ -6,7 +6,7 @@ android {
     compileSdk 33
 
     defaultConfig {
-        minSdk 21
+        minSdk 24
         targetSdk 33
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -27,9 +27,10 @@ android {
 
 dependencies {
     // Import the BoM for the Firebase platform
-    implementation platform('com.google.firebase:firebase-bom:31.1.1')
+    implementation platform('com.google.firebase:firebase-bom:34.10.0')
     // Add the dependency for the Firebase SDK for Google Analytics
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-config'
+    implementation 'com.google.firebase:firebase-installations'
     implementation project(':base')
 }

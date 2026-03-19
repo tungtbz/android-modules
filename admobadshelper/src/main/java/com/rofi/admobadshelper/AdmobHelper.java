@@ -157,6 +157,7 @@ public class AdmobHelper {
 
     private volatile boolean _isDisableResumeAds;
     private volatile boolean aoaBlocker;
+//    private volatile boolean m_isCollapsible;
 
     //    private IAdmobAdListener adListener;
     private ConsentInformation consentInformation;
@@ -272,7 +273,7 @@ public class AdmobHelper {
         setCurrentActivity(activity);
         _cBannerId = id;
         bannerPosition = position;
-
+//        m_isCollapsible = isCollapsible;
         AdView bannerView = new AdView(activity);
         bannerView.setAdSize(getBannerAdSize(activity));
         bannerView.setAdUnitId(_cBannerId);
@@ -293,8 +294,9 @@ public class AdmobHelper {
 
                 }
             }
-            // Get the ad unit ID.
-            onAdPaid("COLLAPSIBLE_BANNER", adValue, _cBannerId, adSourceName);
+
+            onAdPaid("BANNER", adValue, _cBannerId, adSourceName);
+
         });
 
         bannerView.setAdListener(new AdListener() {
@@ -401,7 +403,7 @@ public class AdmobHelper {
         
         bannerRetryHandler.postDelayed(() -> {
             Log.d(TAG, "Retrying banner load (attempt " + bannerRetryCount + ")");
-            loadBanner(true);
+            loadBanner(true, false);
         }, delay);
     }
     
@@ -566,7 +568,7 @@ public class AdmobHelper {
                         @Override
                         public void run() {
                             Log.d(TAG, "Manual Load Banner refresh Time" + refreshTime);
-                            loadBanner(false);
+                            loadBanner(false, false);
                         }
                     });
                 } else {
@@ -580,13 +582,13 @@ public class AdmobHelper {
         handler.postDelayed(r, 1);
     }
 
-    public void ForceLoadBanner() {
+    public void ForceLoadBanner(boolean isCollapsible) {
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, new Runnable() {
                 @Override
                 public void run() {
-                    loadBanner(true);
+                    loadBanner(true, isCollapsible);
                 }
             });
         }
@@ -596,7 +598,7 @@ public class AdmobHelper {
         handler.removeCallbacksAndMessages(null);
     }
 
-    private void loadBanner(boolean isForceLoad) {
+    private void loadBanner(boolean isForceLoad, boolean isCollapsible) {
         AdView bannerView = getBannerAdView();
         if (_cBannerId == null || bannerView == null) {
             synchronized (this) {
@@ -623,15 +625,20 @@ public class AdmobHelper {
                     Log.w(TAG, "Banner view was garbage collected");
                     return;
                 }
-                
-                // Create an extra parameter that aligns the bottom of the expanded ad to
-                // the bottom of the bannerView.
-                Bundle extras = new Bundle();
-                extras.putString("collapsible", bannerPosition == Constants.POSITION_CENTER_TOP ? "top" : "bottom");
+                if(isCollapsible){
+                    // Create an extra parameter that aligns the bottom of the expanded ad to
+                    // the bottom of the bannerView.
+                    Bundle extras = new Bundle();
+                    extras.putString("collapsible", bannerPosition == Constants.POSITION_CENTER_TOP ? "top" : "bottom");
+                    AdRequest adRequest = new AdRequest.Builder().addNetworkExtrasBundle(AdMobAdapter.class, extras).build();
 
-                AdRequest adRequest = new AdRequest.Builder().addNetworkExtrasBundle(AdMobAdapter.class, extras).build();
+                    banner.loadAd(adRequest);
+                }else {
+                    AdRequest adRequest = new AdRequest.Builder().build();
 
-                banner.loadAd(adRequest);
+                    banner.loadAd(adRequest);
+                }
+
                 Log.d(TAG, "Loading Banner");
             });
         } else {
@@ -1823,7 +1830,7 @@ public class AdmobHelper {
                 });
             }
             loadMrec();
-            loadBanner(true);
+            loadBanner(true, false);
             loadInterstitial();
             loadRewarded();
 
