@@ -1550,7 +1550,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             public void onAdDisplayed(MaxAd maxAd) {
                 Log.d(TAG, "Open App onAdDisplayed!");
                 isFullscreenAdsShowing = true;
-
+                _adsAdsEventListener.onAOADisplayed();
             }
 
             @Override
@@ -1561,6 +1561,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                     public void run() {
                         _adsAdsEventListener.onAOAAdHidden();
                         isFullscreenAdsShowing = false;
+                        appOpenAd.loadAd();
                     }
                 }, 2 * 1000);
 
@@ -1576,11 +1577,13 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             public void onAdLoadFailed(String s, MaxError maxError) {
                 Log.d(TAG, "Open App On Ad LoadFailed!");
                 _adsAdsEventListener.onAOAFailedToLoad();
+                appOpenAd.loadAd();
             }
 
             @Override
             public void onAdDisplayFailed(MaxAd maxAd, MaxError maxError) {
                 Log.d(TAG, "Open App On Ad Display Failed!");
+                appOpenAd.loadAd();
             }
         });
 

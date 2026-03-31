@@ -1708,28 +1708,28 @@ public class AdmobHelper {
 
     private volatile boolean needShowAOAAfterLoad;
 
-    public void showAppOpenAds(Activity activity) {
+    public boolean showAppOpenAds(Activity activity) {
         if (_isShowingAd) {
             Log.d(TAG, "The app open ad is already showing.");
-            return;
+            return false;
         }
 
         if (!isAdAvailable()) {
             Log.d(TAG, "The app open ad is not ready");
 //            needShowAOAAfterLoad = true;
             loadAd(getCurrentActivity());
-            return;
+            return false;
         }
 
         if (aoaBlocker) {
             Log.d(TAG, "AOA IS BLOCKED!");
-            return;
+            return false;
         }
 
         if(blockAOACount > 0) {
             Log.d(TAG, "AOA IS BLOCKED! (COUNT SHOW AOA: " + blockAOACount + ")");
             blockAOACount -=1;
-            return;
+            return false;
         }
 
         _appOpenAd.setFullScreenContentCallback(new FullScreenContentCallback() {
@@ -1783,6 +1783,7 @@ public class AdmobHelper {
 
         _isShowingAd = true;
         _appOpenAd.show(activity);
+        return true;
     }
 
     public boolean canShowAOA() {
