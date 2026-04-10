@@ -30,6 +30,7 @@ import com.applovin.mediation.MaxAdListener;
 import com.applovin.mediation.MaxAdRevenueListener;
 import com.applovin.mediation.MaxAdReviewListener;
 import com.applovin.mediation.MaxAdViewAdListener;
+import com.applovin.mediation.MaxAdViewConfiguration;
 import com.applovin.mediation.MaxError;
 import com.applovin.mediation.MaxReward;
 import com.applovin.mediation.MaxRewardedAdListener;
@@ -977,7 +978,15 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 //        String bannerKey = activity.getResources().getString(R.string.applovin_banner_key);
         Log.d(TAG, "Load Banner: " + _bannerAdId);
 
-        bannerAdView = new MaxAdView(_bannerAdId);
+
+        //         Get the adaptive banner height.
+        int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight();
+        int heightPx = AppLovinSdkUtils.dpToPx(activity, heightDp);
+        MaxAdViewConfiguration config = MaxAdViewConfiguration.builder()
+                .setAdaptiveType(MaxAdViewConfiguration.AdaptiveType.ANCHORED)
+                .build();
+
+        bannerAdView = new MaxAdView(_bannerAdId, config);
         bannerAdView.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
@@ -1010,7 +1019,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
             @Override
             public void onAdHidden(MaxAd ad) {
-
+                Log.d(TAG, "onAdHidden Banner: " + _bannerAdId);
             }
 
             @Override
@@ -1021,6 +1030,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
             @Override
             public void onAdLoadFailed(String adUnitId, MaxError error) {
+                Log.d(TAG, "onAdLoadFailed Banner: ");
                 _isBannerLoading = false;
             }
 
@@ -1035,11 +1045,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
         // Banner height on phones and tablets is 50 and 90, respectively
 //        int heightPx = activity.getResources().getDimensionPixelSize(R.dimen.banner_height);
-
-//         Get the adaptive banner height.
-        int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight();
-        int heightPx = AppLovinSdkUtils.dpToPx(activity, heightDp);
-        bannerAdView.setExtraParameter("adaptive_banner", "true");
+//        bannerAdView.setExtraParameter("adaptive_banner", "true");
         bannerAdView.setBackgroundColor(Color.TRANSPARENT);
 
         // --- BẮT ĐẦU PHẦN SỬA ĐỔI ---
@@ -1098,10 +1104,13 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     private void ShowNormalBanner(Activity activity, int position) {
         if (bannerAdView != null) {
 //            Log.d(TAG, "ShowBottomBannerAppLovin: 1");
-            if (bannerAdView.getVisibility() != View.VISIBLE)
+            if (bannerAdView.getVisibility() != View.VISIBLE) {
+                Log.d(TAG, "set visible banner");
                 bannerAdView.setVisibility(View.VISIBLE);
+            }
 
             bannerAdView.startAutoRefresh();
+            Log.d(TAG, "startAutoRefresh banner");
         } else {
 //            Log.d(TAG, "ShowBottomBannerAppLovin: 2");
             LoadNormalBanner(activity, position);
@@ -1237,7 +1246,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                         ViewGroup rootView = activity.findViewById(android.R.id.content);
                         rootView.addView(bannerAdView);
                     }
-                    // Đảm bảo có tiến trình load nếu đang rảnh
+
                     _LoadBannerInternal(activity);
                 }
 
