@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//t/android-modules/maxads/**)",
+      "Bash(xargs grep:*)"
+    ]
+  }
+}

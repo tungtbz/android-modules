@@ -87,6 +87,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
     private volatile int mRetryAttemptNativeAds;
     private volatile int mRetryAttemptNativeBannerAds;
+    private volatile int mRetryAttemptBannerAds;
 
     //native ads - UI components should be volatile for visibility
     private volatile FrameLayout mNativeRectAdsContainer;
@@ -1009,6 +1010,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             public void onAdLoaded(MaxAd ad) {
                 _isBannerLoading = false;
                 _isBannerLoaded = true;
+                mRetryAttemptBannerAds = 0;
                 Log.d(TAG, "BANNER onAdLoaded: ");
             }
 
@@ -1032,6 +1034,14 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             public void onAdLoadFailed(String adUnitId, MaxError error) {
                 Log.d(TAG, "onAdLoadFailed Banner: ");
                 _isBannerLoading = false;
+                mRetryAttemptBannerAds++;
+                long delayMillis = TimeUnit.SECONDS.toMillis((long) Math.pow(2, Math.min(6, mRetryAttemptBannerAds)));
+                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        _LoadBannerInternal();
+                    }
+                }, delayMillis);
             }
 
             @Override
@@ -1081,10 +1091,10 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         ViewGroup rootView = activity.findViewById(android.R.id.content);
         rootView.addView(bannerAdView);
 
-        _LoadBannerInternal(activity);
+        _LoadBannerInternal();
     }
 
-    private synchronized void _LoadBannerInternal(Activity activity) {
+    private synchronized void _LoadBannerInternal() {
         if (_isBannerLoading) {
             Log.d(TAG, "_LoadBannerInternal IsLoading....");
             return;
@@ -1247,7 +1257,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                         rootView.addView(bannerAdView);
                     }
 
-                    _LoadBannerInternal(activity);
+                    _LoadBannerInternal();
                 }
 
                 // Dừng auto refresh ngay lập tức và ẩn banner
