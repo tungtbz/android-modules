@@ -116,6 +116,14 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     private volatile int _mrecPosition;
     private volatile int _mrecBgColor;
 
+    // Custom position state — persists across ad view recreation
+    private volatile String _bannerCustomPosition;  // null = use _bannerPosition int
+    private volatile int    _bannerCustomOffsetX;
+    private volatile int    _bannerCustomOffsetY;
+    private volatile String _mrecCustomPosition;    // null = use _mrecPosition int
+    private volatile int    _mrecCustomOffsetX;
+    private volatile int    _mrecCustomOffsetY;
+
     private volatile Activity _activity;
     private volatile int blockAutoShowInterCount;
 
@@ -467,6 +475,124 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 relativeLayout.setGravity(gravity);
             }
         });
+    }
+
+    /**
+     * Applies a gravity-based position + dp offsets to a MaxAdView that is a direct
+     * child of a FrameLayout (the root content view). Preserves existing height.
+     *
+     * @param adView    The ad view to reposition (bannerAdView or rectAdView)
+     * @param position  Position keyword — see position table in plan
+     * @param offsetXDp Horizontal offset in dp (applied to the edge matching alignment)
+     * @param offsetYDp Vertical offset in dp (applied to the vertical edge)
+     * @param isBanner  true = banner (MATCH_PARENT width); false = MREC (300×250dp)
+     */
+    private void applyAdViewPosition(MaxAdView adView, String position,
+                                     int offsetXDp, int offsetYDp, boolean isBanner) {
+        Activity activity = getCurrentActivity();
+        if (activity == null) return;
+
+        // --- Resolve dimensions ---
+        int widthPx;
+        int heightPx;
+        ViewGroup.LayoutParams existingLp = adView.getLayoutParams();
+        if (isBanner) {
+            widthPx = ViewGroup.LayoutParams.MATCH_PARENT;
+            // Preserve existing height — do NOT recompute adaptive height here
+            heightPx = (existingLp != null) ? existingLp.height
+                    : AppLovinSdkUtils.dpToPx(activity,
+                          MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight());
+        } else {
+            widthPx  = AppLovinSdkUtils.dpToPx(activity, MaxAdFormat.MREC.getSize().getWidth());
+            heightPx = AppLovinSdkUtils.dpToPx(activity, MaxAdFormat.MREC.getSize().getHeight());
+        }
+
+        // --- Normalize position string ---
+        String pos = (position != null) ? position.toLowerCase().trim() : "";
+        // "centered" is invalid for banner (MATCH_PARENT); fall back to bottom_center
+        if (isBanner && "centered".equals(pos)) {
+            Log.w(TAG, "applyAdViewPosition: 'centered' is not supported for Banner "
+                    + "(MATCH_PARENT width). Falling back to 'bottom_center'.");
+            pos = "bottom_center";
+        }
+
+        // --- Resolve gravity ---
+        int gravity;
+        if ("centered".equals(pos)) {
+            gravity = Gravity.CENTER;
+        } else if (pos.contains("top")) {
+            gravity = Gravity.TOP;
+        } else if (pos.contains("bottom")) {
+            gravity = Gravity.BOTTOM;
+        } else {
+            if (!pos.isEmpty()) {
+                Log.w(TAG, "applyAdViewPosition: unknown position '" + position
+                        + "'. Falling back to 'bottom_center'.");
+            }
+            gravity = Gravity.BOTTOM;
+            pos = "bottom_center"; // normalize for margin resolution below
+        }
+        if (pos.contains("left")) {
+            gravity |= Gravity.START;
+        } else if (pos.contains("right")) {
+            gravity |= Gravity.END;
+        } else {
+            gravity |= Gravity.CENTER_HORIZONTAL;
+        }
+
+        // --- Convert offsets: dp → px (safe insets are already in px) ---
+        Insets insets = getSafeInsets();
+        int offsetXPx = AppLovinSdkUtils.dpToPx(activity, offsetXDp);
+        int offsetYPx = AppLovinSdkUtils.dpToPx(activity, offsetYDp);
+
+        int marginLeft   = insets.left;
+        int marginRight  = insets.right;
+        int marginTop    = insets.top;
+        int marginBottom = insets.bottom;
+
+        // Apply offsetX to the edge matching horizontal alignment
+        int hGravity = gravity & Gravity.HORIZONTAL_GRAVITY_MASK;
+        if (hGravity == Gravity.START) {
+            marginLeft += offsetXPx;
+        } else if (hGravity == Gravity.END) {
+            marginRight += offsetXPx;
+        } else {
+            // CENTER_HORIZONTAL: offsetX shifts MREC; for MATCH_PARENT banner it has no effect
+            if (!isBanner) {
+                marginLeft += offsetXPx;
+            }
+        }
+
+        // Apply offsetY to the vertical edge
+        int vGravity = gravity & Gravity.VERTICAL_GRAVITY_MASK;
+        if (vGravity == Gravity.TOP) {
+            marginTop += offsetYPx;
+        } else if (vGravity == Gravity.CENTER_VERTICAL) {
+            // Centered: offsetY pushes down (matches existing updatePositionMrecAdview behavior)
+            marginTop += offsetYPx;
+        } else {
+            marginBottom += offsetYPx;
+        }
+
+        // --- Apply LayoutParams ---
+        FrameLayout.LayoutParams params;
+        if (existingLp instanceof FrameLayout.LayoutParams) {
+            params = (FrameLayout.LayoutParams) existingLp;
+        } else {
+            params = new FrameLayout.LayoutParams(widthPx, heightPx);
+        }
+        params.width   = widthPx;
+        params.height  = heightPx;
+        params.gravity = gravity;
+        params.setMargins(marginLeft, marginTop, marginRight, marginBottom);
+        adView.setLayoutParams(params);
+        adView.requestLayout();
+
+        Log.d(TAG, "applyAdViewPosition: " + (isBanner ? "Banner" : "MREC")
+                + " pos=" + position + " gravity=" + gravity
+                + " offsetX=" + offsetXDp + "dp offsetY=" + offsetYDp + "dp"
+                + " margins=[L=" + marginLeft + " T=" + marginTop
+                + " R=" + marginRight + " B=" + marginBottom + "]px");
     }
 
     private static void d(String message) {
@@ -927,6 +1053,13 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(widthPx, heightPx, gravity);
         layoutParams.setMargins(0, 0, 0, 0);
         rectAdView.setLayoutParams(layoutParams);
+
+        // Apply custom position if one has been set via SetMRECPosition()
+        if (_mrecCustomPosition != null) {
+            applyAdViewPosition(rectAdView, _mrecCustomPosition,
+                    _mrecCustomOffsetX, _mrecCustomOffsetY, false);
+        }
+
         rectAdView.setVisibility(View.GONE);
         rectAdView.setBackgroundColor(_mrecBgColor);
 
@@ -1078,6 +1211,12 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
         // Áp dụng các tham số layout đã cấu hình cho bannerAdView
         bannerAdView.setLayoutParams(layoutParams);
+
+        // Apply custom position if one has been set via SetBannerPosition()
+        if (_bannerCustomPosition != null) {
+            applyAdViewPosition(bannerAdView, _bannerCustomPosition,
+                    _bannerCustomOffsetX, _bannerCustomOffsetY, true);
+        }
 
         // --- KẾT THÚC PHẦN SỬA ĐỔI ---
 
@@ -1241,6 +1380,36 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         HideNativeBanner();
     }
 
+    /**
+     * Sets a custom position for the main banner ad view.
+     * Safe to call at any time; position is persisted and re-applied if the banner
+     * is recreated (e.g., after cleanup() + Init()).
+     *
+     * Supported position values: "top_center", "top_left", "top_right",
+     *   "bottom_center" (default), "bottom_left", "bottom_right".
+     * Note: "centered" is not supported for banner and falls back to "bottom_center".
+     *
+     * @param position  Position string (case-insensitive)
+     * @param offsetX   Horizontal offset in dp (positive = inward from aligned edge)
+     * @param offsetY   Vertical offset in dp (positive = inward from aligned edge)
+     */
+    public void SetBannerPosition(String position, int offsetX, int offsetY) {
+        _bannerCustomPosition = position;
+        _bannerCustomOffsetX  = offsetX;
+        _bannerCustomOffsetY  = offsetY;
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (bannerAdView == null) {
+                    Log.w(TAG, "SetBannerPosition: bannerAdView not yet initialized; "
+                            + "position saved and will be applied on next load.");
+                    return;
+                }
+                applyAdViewPosition(bannerAdView, position, offsetX, offsetY, true);
+            }
+        });
+    }
+
     public void PreloadBanner() {
         Activity activity = getCurrentActivity();
         Log.d(TAG, "PreloadBanner");
@@ -1302,6 +1471,35 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         }
 
         mRectShowFlag = 1;
+    }
+
+    /**
+     * Sets a custom position for the main MREC ad view.
+     * Safe to call at any time; position is persisted and re-applied if the MREC
+     * is recreated (e.g., after cleanup() + Init()).
+     *
+     * Supported position values: "top_center", "top_left", "top_right",
+     *   "bottom_center", "bottom_left", "bottom_right", "centered".
+     *
+     * @param position  Position string (case-insensitive)
+     * @param offsetX   Horizontal offset in dp (positive = inward from aligned edge)
+     * @param offsetY   Vertical offset in dp (positive = inward from aligned edge)
+     */
+    public void SetMRECPosition(String position, int offsetX, int offsetY) {
+        _mrecCustomPosition = position;
+        _mrecCustomOffsetX  = offsetX;
+        _mrecCustomOffsetY  = offsetY;
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (rectAdView == null) {
+                    Log.w(TAG, "SetMRECPosition: rectAdView not yet initialized; "
+                            + "position saved and will be applied on next load.");
+                    return;
+                }
+                applyAdViewPosition(rectAdView, position, offsetX, offsetY, false);
+            }
+        });
     }
 
     //fix bug for unity 2022.3.12
