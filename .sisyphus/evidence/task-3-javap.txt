@@ -1,0 +1,1 @@
+  protected android.widget.FrameLayout$LayoutParams getBannerLayoutParams(int, int, int);

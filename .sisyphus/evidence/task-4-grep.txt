@@ -1,0 +1,5 @@
+Line 742:                         FrameLayout.LayoutParams layoutParams = getLayoutParams(positionCode, mrecXOffset, topPadding);
+Line 755:     protected FrameLayout.LayoutParams getLayoutParams(int positionCode, int xDp, int yDp) {
+Line 787:     protected FrameLayout.LayoutParams getLayoutParams(int positionCode, int topPadding) {
+Line 788:         return getLayoutParams(positionCode, 0, topPadding);
+Line 1611:         activity.addContentView(mrecView, (ViewGroup.LayoutParams) getLayoutParams(positionCode, 0));

@@ -155,7 +155,7 @@ Max Concurrent: 2 (Wave 4) + 4 (Wave FINAL)
 
 ## TODOs
 
-- [ ] 1. Add new instance fields: `bannerXOffset`, `bannerYOffset`, `mrecXOffset`
+- [x] 1. Add new instance fields: `bannerXOffset`, `bannerYOffset`, `mrecXOffset`
 
   **What to do**:
   - Open `AdmobHelper.java`
@@ -225,7 +225,7 @@ Max Concurrent: 2 (Wave 4) + 4 (Wave FINAL)
 
   **Commit**: NO — grouped with all other tasks in final single commit
 
-- [ ] 2. Add `getLayoutParams(positionCode, xDp, yDp)` overload; delegate old 2-arg method to it
+- [x] 2. Add `getLayoutParams(positionCode, xDp, yDp)` overload; delegate old 2-arg method to it
 
   **What to do**:
   - In `AdmobHelper.java`, locate `protected FrameLayout.LayoutParams getLayoutParams(int positionCode, int topPadding)` at line 725
@@ -335,7 +335,7 @@ Max Concurrent: 2 (Wave 4) + 4 (Wave FINAL)
 
   **Commit**: NO — grouped in final single commit
 
-- [ ] 3. Add `getBannerLayoutParams(positionCode, xDp, yDp)` + fix `initBanner()` to use stored offsets
+- [x] 3. Add `getBannerLayoutParams(positionCode, xDp, yDp)` + fix `initBanner()` to use stored offsets
 
   **What to do**:
   - Add a new protected method `getBannerLayoutParams(int positionCode, int xDp, int yDp)` near the existing `getLayoutParams` methods (insert after the 3-arg `getLayoutParams` overload added in Task 2):
@@ -463,7 +463,7 @@ Max Concurrent: 2 (Wave 4) + 4 (Wave FINAL)
 
   **Commit**: NO — grouped in final single commit
 
-- [ ] 4. MREC public API — add `setMrecPosition(positionCode, xDp, yDp)` overload; update `updateMrecPosition()` to read `mrecXOffset`
+- [x] 4. MREC public API — add `setMrecPosition(positionCode, xDp, yDp)` overload; update `updateMrecPosition()` to read `mrecXOffset`
 
   **What to do**:
 
@@ -555,7 +555,7 @@ Max Concurrent: 2 (Wave 4) + 4 (Wave FINAL)
 
   **Commit**: NO — grouped in final single commit
 
-- [ ] 5. Banner public API — add `updateBannerPosition()` + `setBannerPosition(positionCode, xDp, yDp)`
+- [x] 5. Banner public API — add `updateBannerPosition()` + `setBannerPosition(positionCode, xDp, yDp)`
 
   **What to do**:
 

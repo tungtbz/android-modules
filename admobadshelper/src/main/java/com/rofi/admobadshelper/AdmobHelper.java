@@ -157,6 +157,12 @@ public class AdmobHelper {
 
     private volatile boolean _isDisableResumeAds;
     private volatile boolean aoaBlocker;
+
+    // Thread-safe offset fields for banner and mrec positioning
+    private volatile int bannerXOffset = 0;
+    private volatile int bannerYOffset = 0;
+    private volatile int mrecXOffset = 0;
+
 //    private volatile boolean m_isCollapsible;
 
     //    private IAdmobAdListener adListener;
@@ -358,11 +364,7 @@ public class AdmobHelper {
             }
         });
 
-        int gravity = bannerPosition == Constants.POSITION_CENTER_TOP ? Gravity.CENTER_HORIZONTAL | Gravity.TOP : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
-
-        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravity);
-
-        layoutParams.setMargins(0, 0, 0, 0);
+        FrameLayout.LayoutParams layoutParams = getBannerLayoutParams(bannerPosition, bannerXOffset, bannerYOffset);
         bannerView.setLayoutParams(layoutParams);
 
         ViewGroup rootView = activity.findViewById(android.R.id.content);
@@ -670,7 +672,7 @@ public class AdmobHelper {
     public void HideBanner() {
         // Set logical state to hidden
         bannerLogicallyVisible = false;
-        
+
         Activity currentActivity = getCurrentActivity();
         if (currentActivity != null) {
             runSafelyOnUiThread(currentActivity, () -> {
@@ -684,6 +686,33 @@ public class AdmobHelper {
                 }
             });
         }
+    }
+
+    private void updateBannerPosition(int positionCode, int xDp, int yDp) {
+        AdView banner = getBannerAdView();
+        if (banner == null) return;
+        Activity currentActivity = getCurrentActivity();
+        if (currentActivity != null) {
+            runSafelyOnUiThread(currentActivity, new Runnable() {
+                public void run() {
+                    AdView bannerView = getBannerAdView();
+                    if (bannerView != null) {
+                        FrameLayout.LayoutParams lp = getBannerLayoutParams(positionCode, xDp, yDp);
+                        bannerView.setLayoutParams(lp);
+                        bannerView.requestLayout();
+                    }
+                }
+            });
+        }
+    }
+
+    public void setBannerPosition(int positionCode, int xDp, int yDp) {
+        synchronized (this) {
+            bannerPosition = positionCode;
+            bannerXOffset = xDp;
+            bannerYOffset = yDp;
+        }
+        updateBannerPosition(positionCode, xDp, yDp);
     }
 
     private AdSize getBannerAdSize(Activity activity) {
@@ -700,10 +729,6 @@ public class AdmobHelper {
         return AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity.getApplicationContext(), adWidth);
     }
 
-//    private int mPositionCode;
-//    private int mHorizontalOffset;
-//    private int mVerticalOffset;
-
     private void updateMrecPosition(int positionCode, int topPadding) {
         AdView mrec = getMrecAdView();
         if (mrec == null) return;
@@ -714,7 +739,7 @@ public class AdmobHelper {
                 public void run() {
                     AdView mrecView = getMrecAdView();
                     if (mrecView != null) { // Double check after UI thread switch
-                        FrameLayout.LayoutParams layoutParams = getLayoutParams(positionCode, topPadding);
+                        FrameLayout.LayoutParams layoutParams = getLayoutParams(positionCode, mrecXOffset, topPadding);
                         mrecView.setLayoutParams(layoutParams);
                     }
                 }
@@ -722,8 +747,15 @@ public class AdmobHelper {
         }
     }
 
-    protected FrameLayout.LayoutParams getLayoutParams(int positionCode, int topPadding) {
-        FrameLayout.LayoutParams adParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    /**
+     * Returns FrameLayout params for MREC positioning.
+     * For POSITION_CUSTOM (-1): positions at absolute (xDp, yDp) from top-left, respecting safe insets.
+     * For other positions: xDp is ignored; yDp acts as extra top padding offset (same as legacy topPadding).
+     */
+    protected FrameLayout.LayoutParams getLayoutParams(int positionCode, int xDp, int yDp) {
+        FrameLayout.LayoutParams adParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
         adParams.gravity = AdmobHelper.getLayoutGravityForPositionCode(positionCode);
         Insets insets = getSafeInsets();
         int safeInsetLeft = insets.left;
@@ -732,29 +764,68 @@ public class AdmobHelper {
         adParams.bottomMargin = insets.bottom;
         adParams.rightMargin = insets.right;
 
-        if (positionCode == -1) {
-//            int leftOffset = (int) AdmobHelper.convertDpToPixel(this.mHorizontalOffset);
-            int leftOffset = 0;
-            if (leftOffset < safeInsetLeft)
-                leftOffset = safeInsetLeft;
-            int topOffset = (int) AdmobHelper.convertDpToPixel(topPadding);
-            if (topOffset < safeInsetTop)
-                topOffset = safeInsetTop;
+        if (positionCode == POSITION_CUSTOM) {
+            int leftOffset = (int) AdmobHelper.convertDpToPixel(xDp);
+            if (leftOffset < safeInsetLeft) leftOffset = safeInsetLeft;
+            int topOffset = (int) AdmobHelper.convertDpToPixel(yDp);
+            if (topOffset < safeInsetTop) topOffset = safeInsetTop;
             adParams.leftMargin = leftOffset;
             adParams.topMargin = topOffset;
-
         } else {
             adParams.leftMargin = safeInsetLeft;
-
-            if (positionCode == 0
-                    || positionCode == 2
-                    || positionCode == 3
-                    || positionCode == 6
-            ) {
-                int topOffsetPixel = (int) AdmobHelper.convertDpToPixel(topPadding);
+            if (positionCode == POSITION_TOP_CENTER
+                    || positionCode == POSITION_TOP_LEFT
+                    || positionCode == POSITION_TOP_RIGHT
+                    || positionCode == POSITION_CENTER) {
+                int topOffsetPixel = (int) AdmobHelper.convertDpToPixel(yDp);
                 adParams.topMargin = safeInsetTop + topOffsetPixel;
             }
+        }
+        return adParams;
+    }
 
+    protected FrameLayout.LayoutParams getLayoutParams(int positionCode, int topPadding) {
+        return getLayoutParams(positionCode, 0, topPadding);
+    }
+
+    /**
+     * Returns FrameLayout params for Banner positioning.
+     * Banner always uses MATCH_PARENT width (full-width ad strip).
+     * For POSITION_CUSTOM (-1): positions at absolute (xDp, yDp) from top-left.
+     * Note: when POSITION_CUSTOM + xDp > 0, the banner is clipped on the right — by design.
+     * For other positions: xDp is ignored; yDp acts as extra top/bottom margin offset.
+     */
+    protected FrameLayout.LayoutParams getBannerLayoutParams(int positionCode, int xDp, int yDp) {
+        FrameLayout.LayoutParams adParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        Insets insets = getSafeInsets();
+        int safeInsetTop = insets.top;
+        int safeInsetBottom = insets.bottom;
+
+        adParams.bottomMargin = safeInsetBottom;
+        adParams.rightMargin = insets.right;
+
+        if (positionCode == POSITION_CUSTOM) {
+            int leftOffset = (int) AdmobHelper.convertDpToPixel(xDp);
+            int topOffset = (int) AdmobHelper.convertDpToPixel(yDp);
+            if (topOffset < safeInsetTop) topOffset = safeInsetTop;
+            adParams.gravity = Gravity.TOP | Gravity.START;
+            adParams.leftMargin = leftOffset;
+            adParams.topMargin = topOffset;
+        } else {
+            adParams.leftMargin = insets.left;
+            int offsetPixel = (int) AdmobHelper.convertDpToPixel(yDp);
+            if (positionCode == POSITION_TOP_CENTER
+                    || positionCode == POSITION_TOP_LEFT
+                    || positionCode == POSITION_TOP_RIGHT
+                    || positionCode == POSITION_CENTER) {
+                adParams.gravity = Gravity.CENTER_HORIZONTAL | Gravity.TOP;
+                adParams.topMargin = safeInsetTop + offsetPixel;
+            } else {
+                adParams.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+                adParams.bottomMargin = safeInsetBottom + offsetPixel;
+            }
         }
         return adParams;
     }
@@ -823,7 +894,14 @@ public class AdmobHelper {
     }
 
     public void setMrecPosition(int positionCode, int offsetY) {
-        this.updateMrecPosition(positionCode, offsetY);
+        setMrecPosition(positionCode, 0, offsetY);
+    }
+
+    public void setMrecPosition(int positionCode, int xDp, int yDp) {
+        synchronized (this) {
+            mrecXOffset = xDp;
+        }
+        this.updateMrecPosition(positionCode, yDp);
     }
 
     public void loadMrec() {

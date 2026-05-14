@@ -1,0 +1,3 @@
+Line 367:         FrameLayout.LayoutParams layoutParams = getBannerLayoutParams(bannerPosition, bannerXOffset, bannerYOffset);
+Line 700:                         FrameLayout.LayoutParams lp = getBannerLayoutParams(positionCode, xDp, yDp);
+Line 798:     protected FrameLayout.LayoutParams getBannerLayoutParams(int positionCode, int xDp, int yDp) {

@@ -1,0 +1,67 @@
+{
+  "active_plan": "T:\\android-modules\\.sisyphus\\plans\\admobhelper-custom-position.md",
+  "started_at": "2026-05-14T05:37:21Z",
+  "session_ids": [
+    "ses_1db1ccfc7ffeDdiO6t9VixK7iX",
+    "ses_1dae86845ffelVElelF27xAuYn",
+    "ses_1dae83fa2ffe1AsDe0ZnOQ7OjF",
+    "ses_1dae81040ffeOtczGm6gVnp3II",
+    "ses_1dae7d77cffealq06q7DIdXF1O"
+  ],
+  "plan_name": "admobhelper-custom-position",
+  "worktree_path": "T:\\android-modules",
+  "session_origins": {
+    "ses_1db1ccfc7ffeDdiO6t9VixK7iX": "direct",
+    "ses_1dae86845ffelVElelF27xAuYn": "appended",
+    "ses_1dae83fa2ffe1AsDe0ZnOQ7OjF": "appended",
+    "ses_1dae81040ffeOtczGm6gVnp3II": "appended",
+    "ses_1dae7d77cffealq06q7DIdXF1O": "appended"
+  },
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Add new instance fields: `bannerXOffset`, `bannerYOffset`, `mrecXOffset`",
+      "session_id": "ses_1db01a628ffe22aJkM4oME1ww6",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-14T05:42:39.241Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "Add `getLayoutParams(positionCode, xDp, yDp)` overload; delegate old 2-arg method to it",
+      "session_id": "ses_1dafa074cffeOGbVvzIO30zfOK",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-14T05:51:52.721Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Add `getBannerLayoutParams(positionCode, xDp, yDp)` + fix `initBanner()` to use stored offsets",
+      "session_id": "ses_1daf28e6effel1ML6jYyFrdK1c",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-14T05:58:57.785Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "MREC public API — add `setMrecPosition(positionCode, xDp, yDp)` overload; update `updateMrecPosition()` to read `mrecXOffset`",
+      "session_id": "ses_1daed7e3cffe12nii1VJKrP2yp",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-14T06:03:43.192Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_1dae7d77cffealq06q7DIdXF1O",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-14T06:06:40.897Z"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+PASS - old 2-arg call exists: Line 1611:         activity.addContentView(mrecView, (ViewGroup.LayoutParams) getLayoutParams(positionCode, 0));
+
+PASS - old setMrecPosition delegates to 3-arg: Line 897:         setMrecPosition(positionCode, 0, offsetY);
+
+PASS - 2-arg signature exists: Line 896:     public void setMrecPosition(int positionCode, int offsetY) {
+

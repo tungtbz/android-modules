@@ -1,0 +1,2 @@
+  protected android.widget.FrameLayout$LayoutParams getLayoutParams(int, int, int);
+  protected android.widget.FrameLayout$LayoutParams getLayoutParams(int, int);
