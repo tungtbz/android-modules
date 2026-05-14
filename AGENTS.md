@@ -60,6 +60,8 @@ android-modules/
 - **ALWAYS provide alternatives to rewarded ads** — fallback for users who skip
 - **Never return null collections** — return empty list/map instead
 - **Do not expose DTOs to UI** — map to domain models first
+- **Never use `+` dynamic versions** — breaks reproducible builds
+- **Never hardcode credentials** — use user-level gradle.properties
 
 ## UNIQUE STYLES
 - **No version catalog** — each module declares dependencies inline; uses `+` dynamic versions (non-reproducible)
