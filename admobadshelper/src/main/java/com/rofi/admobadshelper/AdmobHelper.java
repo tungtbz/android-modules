@@ -986,6 +986,34 @@ public class AdmobHelper {
         return mrecAdLoaded;
     }
 
+    /**
+     * Returns the height of the adaptive banner ad in pixels for the current screen orientation.
+     * Uses the same size calculation as {@link #getBannerAdSize(Activity)}.
+     *
+     * @return Banner height in pixels, or 0 if no valid activity is available.
+     */
+    public int getBannerHeightInPixels() {
+        Activity activity = getCurrentActivity();
+        if (activity == null) return 0;
+        try {
+            AdSize adSize = getBannerAdSize(activity);
+            return (int) convertDpToPixel(adSize.getHeight());
+        } catch (Exception e) {
+            Log.e(TAG, "getBannerHeightInPixels: failed to compute height", e);
+            return 0;
+        }
+    }
+
+    /**
+     * Returns the height of the MREC (Medium Rectangle) ad in pixels.
+     * MREC is always 250dp per AdMob specification (AdSize.MEDIUM_RECTANGLE).
+     *
+     * @return MREC height in pixels, or 0 if density information is unavailable.
+     */
+    public int getMrecHeightInPixels() {
+        return (int) convertDpToPixel(250f);
+    }
+
     // ==================== INTERSTITIAL AD METHODS ====================
     
     /**

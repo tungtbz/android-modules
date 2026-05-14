@@ -1306,6 +1306,40 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         return mInterstitialAd.isReady();
     }
 
+    /**
+     * Returns the adaptive banner height in pixels for the current screen orientation.
+     * Uses the same calculation as {@link #LoadNormalBanner(Activity, int)}.
+     * Returns 0 if the activity is unavailable or the AppLovin SDK is not yet initialized.
+     *
+     * @return Banner height in pixels, or 0 if unavailable.
+     */
+    public int getBannerHeightInPixels() {
+        Activity activity = getCurrentActivity();
+        if (activity == null) return 0;
+        if (sdk == null) return 0;
+        try {
+            int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(activity).getHeight();
+            return AppLovinSdkUtils.dpToPx(activity, heightDp);
+        } catch (Exception e) {
+            Log.e(TAG, "getBannerHeightInPixels: failed to compute height", e);
+            return 0;
+        }
+    }
+
+    /**
+     * Returns the MREC (Medium Rectangle) height in pixels.
+     * MREC is always 250dp per AppLovin MAX specification.
+     * Returns 0 if the activity is unavailable.
+     *
+     * @return MREC height in pixels, or 0 if unavailable.
+     */
+    public int getMrecHeightInPixels() {
+        Activity activity = getCurrentActivity();
+        if (activity == null) return 0;
+        int heightDp = MaxAdFormat.MREC.getSize().getHeight();
+        return AppLovinSdkUtils.dpToPx(activity, heightDp);
+    }
+
     @Override
     public void ShowReward(int requestCode) {
         if (IsRewardReady()) {
