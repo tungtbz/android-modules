@@ -234,8 +234,8 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 // Start loading ads
                 Log.d(TAG, "onSdkInitialized");
 
-                InitVideoRewardAds(_activity);
-                InitInterAds(_activity);
+//                InitVideoRewardAds(_activity);
+//                InitInterAds(_activity);
 
 //                //cache MREC
                 LoadMREC(_activity, _mrecPosition);
@@ -478,17 +478,17 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     }
 
     /**
-     * Applies a gravity-based position + dp offsets to a MaxAdView that is a direct
+     * Applies a gravity-based position + px offsets to a MaxAdView that is a direct
      * child of a FrameLayout (the root content view). Preserves existing height.
      *
      * @param adView    The ad view to reposition (bannerAdView or rectAdView)
      * @param position  Position keyword — see position table in plan
-     * @param offsetXDp Horizontal offset in dp (applied to the edge matching alignment)
-     * @param offsetYDp Vertical offset in dp (applied to the vertical edge)
+     * @param offsetXPx Horizontal offset in pixels (applied to the edge matching alignment)
+     * @param offsetYPx Vertical offset in pixels (applied to the vertical edge)
      * @param isBanner  true = banner (MATCH_PARENT width); false = MREC (300×250dp)
      */
     private void applyAdViewPosition(MaxAdView adView, String position,
-                                     int offsetXDp, int offsetYDp, boolean isBanner) {
+                                     int offsetXPx, int offsetYPx, boolean isBanner) {
         Activity activity = getCurrentActivity();
         if (activity == null) return;
 
@@ -540,10 +540,8 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             gravity |= Gravity.CENTER_HORIZONTAL;
         }
 
-        // --- Convert offsets: dp → px (safe insets are already in px) ---
+        // --- Get safe insets (already in px) ---
         Insets insets = getSafeInsets();
-        int offsetXPx = AppLovinSdkUtils.dpToPx(activity, offsetXDp);
-        int offsetYPx = AppLovinSdkUtils.dpToPx(activity, offsetYDp);
 
         int marginLeft   = insets.left;
         int marginRight  = insets.right;
@@ -590,7 +588,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
         Log.d(TAG, "applyAdViewPosition: " + (isBanner ? "Banner" : "MREC")
                 + " pos=" + position + " gravity=" + gravity
-                + " offsetX=" + offsetXDp + "dp offsetY=" + offsetYDp + "dp"
+                + " offsetX=" + offsetXPx + "px offsetY=" + offsetYPx + "px"
                 + " margins=[L=" + marginLeft + " T=" + marginTop
                 + " R=" + marginRight + " B=" + marginBottom + "]px");
     }
@@ -1434,8 +1432,8 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
      * Note: "centered" is not supported for banner and falls back to "bottom_center".
      *
      * @param position  Position string (case-insensitive)
-     * @param offsetX   Horizontal offset in dp (positive = inward from aligned edge)
-     * @param offsetY   Vertical offset in dp (positive = inward from aligned edge)
+     * @param offsetX   Horizontal offset in pixels (positive = inward from aligned edge)
+     * @param offsetY   Vertical offset in pixels (positive = inward from aligned edge)
      */
     public void SetBannerPosition(String position, int offsetX, int offsetY) {
         _bannerCustomPosition = position;
@@ -1526,8 +1524,8 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
      *   "bottom_center", "bottom_left", "bottom_right", "centered".
      *
      * @param position  Position string (case-insensitive)
-     * @param offsetX   Horizontal offset in dp (positive = inward from aligned edge)
-     * @param offsetY   Vertical offset in dp (positive = inward from aligned edge)
+     * @param offsetX   Horizontal offset in pixels (positive = inward from aligned edge)
+     * @param offsetY   Vertical offset in pixels (positive = inward from aligned edge)
      */
     public void SetMRECPosition(String position, int offsetX, int offsetY) {
         _mrecCustomPosition = position;

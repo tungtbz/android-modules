@@ -1,17 +1,15 @@
 {
-  "active_plan": "/Users/tungtran/Desktop/android-modules/.sisyphus/plans/github-credentials-setup.md",
-  "started_at": "2026-05-14T14:46:50.439Z",
+  "active_plan": "T:\\android-modules\\.sisyphus\\plans\\fix-apply-ad-view-position-offset-unit.md",
+  "started_at": "2026-05-15T03:21:28.111Z",
   "session_ids": [
-    "ses_1d92edbafffebvtJJCuubyb2zs"
+    "ses_1d6630876ffeMEjr7aYSUCLKXb"
   ],
-  "plan_name": "github-credentials-setup",
+  "plan_name": "fix-apply-ad-view-position-offset-unit",
   "session_origins": {
-    "ses_1d92edbafffebvtJJCuubyb2zs": "direct"
+    "ses_1d6630876ffeMEjr7aYSUCLKXb": "direct"
   },
   "task_sessions": {},
-  "active_work_id": "github-credentials-setup-legacy",
-  "status": "completed",
-  "ended_at": "2026-05-14T14:48:34.705Z",
-  "elapsed_ms": 104266,
-  "updated_at": "2026-05-14T14:48:34.705Z"
+  "active_work_id": "fix-apply-ad-view-position-offset-unit",
+  "status": "in_progress",
+  "updated_at": "2026-05-15T03:21:28.111Z"
 }
