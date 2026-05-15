@@ -78,6 +78,14 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     // Used to test SetBannerPosition / SetBannerPositionAbsolute without waiting for ad load.
     private volatile View mDebugBannerPlaceholder;
 
+    // Debug placeholder — solid black view at the exact position/size of the MREC.
+    // Used to test SetMRECPosition / SetMrecPositionAbsolute without waiting for ad load.
+    // NOTE: intentionally NOT nulled in cleanup() — consistent with mDebugBannerPlaceholder.
+    // Known limitation: after cleanup() + re-Init() with a new Activity, the placeholder
+    // still references the old Activity's view hierarchy. Call HideDebugMrecPlaceholder()
+    // before cleanup() to avoid stale-view edge cases.
+    private volatile View mDebugMrecPlaceholder;
+
     private volatile int mCurrentVideoRewardRequestCode;
     private volatile int mCurrentInterRequestCode;
 
@@ -707,6 +715,77 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                     debugParams.bottomMargin = 0;
                     mDebugBannerPlaceholder.setLayoutParams(debugParams);
                     mDebugBannerPlaceholder.requestLayout();
+                }
+            }
+        });
+    }
+
+    /**
+     * Positions the MREC ad view at an absolute pixel coordinate.
+     * {@code centerXPx} and {@code centerYPx} define the center of the ad in screen pixels
+     * (origin = top-left of the window, consistent with Unity RectTransform worldspace).
+     * <p>
+     * Safe insets are NOT added — callers (e.g. Unity) are expected to include them.
+     * <p>
+     * <strong>Note</strong>: this method clears {@code _mrecCustomPosition} so that a
+     * subsequent {@link #LoadMREC} call does not override the absolute position via
+     * {@link #applyAdViewPosition}. Re-call {@link #SetMRECPosition} afterwards if you
+     * want to restore gravity-based positioning.
+     *
+     * @param centerXPx Horizontal center of the MREC in pixels.
+     * @param centerYPx Vertical center of the MREC in pixels.
+     */
+    public void SetMrecPositionAbsolute(int centerXPx, int centerYPx) {
+        // Clear gravity-based position so LoadMREC won't override us on next ad refresh
+        _mrecCustomPosition = null;
+        _mrecCustomOffsetX  = 0;
+        _mrecCustomOffsetY  = 0;
+
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                Activity act = getCurrentActivity();
+                if (act == null) return;
+                if (rectAdView == null) return;
+
+                int widthPx  = AppLovinSdkUtils.dpToPx(act, MaxAdFormat.MREC.getSize().getWidth());
+                int heightPx = AppLovinSdkUtils.dpToPx(act, MaxAdFormat.MREC.getSize().getHeight());
+
+                ViewGroup.LayoutParams existingLp = rectAdView.getLayoutParams();
+                FrameLayout.LayoutParams params;
+                if (existingLp instanceof FrameLayout.LayoutParams) {
+                    params = (FrameLayout.LayoutParams) existingLp;
+                } else {
+                    params = new FrameLayout.LayoutParams(widthPx, heightPx);
+                }
+                // TOP | START + absolute margin = absolute coordinates, no gravity offset
+                params.gravity      = Gravity.TOP | Gravity.START;
+                params.width        = widthPx;
+                params.height       = heightPx;
+                // Center the 300×250dp view on the requested center point.
+                // Unity already includes safe-insets in centerXPx/centerYPx.
+                params.topMargin    = centerYPx - heightPx / 2;
+                params.leftMargin   = centerXPx - widthPx  / 2;
+                params.rightMargin  = 0;
+                params.bottomMargin = 0;
+                rectAdView.setLayoutParams(params);
+                rectAdView.requestLayout();
+                Log.d(TAG, "SetMrecPositionAbsolute: centerX=" + centerXPx + " centerY=" + centerYPx
+                        + " widthPx=" + widthPx + " heightPx=" + heightPx
+                        + " topMargin=" + params.topMargin + " leftMargin=" + params.leftMargin);
+
+                // Sync debug placeholder with absolute position
+                if (mDebugMrecPlaceholder != null
+                        && mDebugMrecPlaceholder.getVisibility() == View.VISIBLE) {
+                    FrameLayout.LayoutParams debugParams =
+                            new FrameLayout.LayoutParams(widthPx, heightPx);
+                    debugParams.gravity      = Gravity.TOP | Gravity.START;
+                    debugParams.topMargin    = centerYPx - heightPx / 2;
+                    debugParams.leftMargin   = centerXPx - widthPx  / 2;
+                    debugParams.rightMargin  = 0;
+                    debugParams.bottomMargin = 0;
+                    mDebugMrecPlaceholder.setLayoutParams(debugParams);
+                    mDebugMrecPlaceholder.requestLayout();
                 }
             }
         });
@@ -1629,6 +1708,133 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     }
 
     /**
+     * Repositions the debug MREC placeholder to match the current MREC position state.
+     * Mirrors the gravity + margin logic of applyAdViewPosition (isBanner=false).
+     * Must be called on the UI thread.
+     *
+     * @param widthPx  MREC width in pixels (300dp converted).
+     * @param heightPx MREC height in pixels (250dp converted).
+     */
+    private void positionDebugMrecPlaceholder(int widthPx, int heightPx) {
+        if (mDebugMrecPlaceholder == null) return;
+        Activity act = getCurrentActivity();
+        if (act == null) return;
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(widthPx, heightPx);
+
+        if (_mrecCustomPosition != null) {
+            // Mirror applyAdViewPosition logic (isBanner = false)
+            String pos = _mrecCustomPosition.toLowerCase().trim();
+
+            int gravity;
+            if ("centered".equals(pos)) {
+                gravity = Gravity.CENTER;
+            } else if (pos.contains("top")) {
+                gravity = Gravity.TOP;
+            } else {
+                gravity = Gravity.BOTTOM;
+            }
+            if (!"centered".equals(pos)) {
+                if (pos.contains("left")) {
+                    gravity |= Gravity.START;
+                } else if (pos.contains("right")) {
+                    gravity |= Gravity.END;
+                } else {
+                    gravity |= Gravity.CENTER_HORIZONTAL;
+                }
+            }
+
+            Insets insets = getSafeInsets();
+            int marginLeft   = insets.left;
+            int marginRight  = insets.right;
+            int marginTop    = insets.top;
+            int marginBottom = insets.bottom;
+
+            // Mirror applyAdViewPosition CENTER_HORIZONTAL offset behavior (isBanner=false)
+            int hGravity = gravity & Gravity.HORIZONTAL_GRAVITY_MASK;
+            if (hGravity == Gravity.START) {
+                marginLeft += _mrecCustomOffsetX;
+            } else if (hGravity == Gravity.END) {
+                marginRight += _mrecCustomOffsetX;
+            } else {
+                // CENTER_HORIZONTAL: offsetX shifts left margin (per applyAdViewPosition line ~564)
+                marginLeft += _mrecCustomOffsetX;
+            }
+
+            // Mirror applyAdViewPosition vertical offset (line ~572-576)
+            int vGravity = gravity & Gravity.VERTICAL_GRAVITY_MASK;
+            if (vGravity == Gravity.TOP) {
+                marginTop += _mrecCustomOffsetY;
+            } else if (vGravity == Gravity.CENTER_VERTICAL) {
+                marginTop += _mrecCustomOffsetY;
+            } else {
+                marginBottom += _mrecCustomOffsetY;
+            }
+
+            params.gravity = gravity;
+            params.setMargins(marginLeft, marginTop, marginRight, marginBottom);
+        } else {
+            // Default gravity — mirrors LoadMREC behaviour (line ~1113)
+            params.gravity = (_mrecPosition == Constants.POSITION_CENTER_TOP)
+                    ? Gravity.CENTER_HORIZONTAL | Gravity.TOP
+                    : Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+        }
+
+        mDebugMrecPlaceholder.setLayoutParams(params);
+        mDebugMrecPlaceholder.requestLayout();
+    }
+
+    /**
+     * Shows a solid black placeholder view at the exact position and size (300x250dp)
+     * of the real MREC. Use this to visually verify SetMRECPosition() and
+     * SetMrecPositionAbsolute() without waiting for the MREC ad to load.
+     * <p>
+     * SetMRECPosition() and SetMrecPositionAbsolute() automatically keep the
+     * placeholder in sync while it is visible.
+     */
+    public void ShowDebugMrecPlaceholder() {
+        Activity activity = getCurrentActivity();
+        if (activity == null) return;
+        runSafelyOnUiThread(activity, new Runnable() {
+            @Override
+            public void run() {
+                Activity act = getCurrentActivity();
+                if (act == null) return;
+
+                int widthPx  = AppLovinSdkUtils.dpToPx(act, MaxAdFormat.MREC.getSize().getWidth());
+                int heightPx = AppLovinSdkUtils.dpToPx(act, MaxAdFormat.MREC.getSize().getHeight());
+
+                if (mDebugMrecPlaceholder == null) {
+                    mDebugMrecPlaceholder = new View(act);
+                    mDebugMrecPlaceholder.setBackgroundColor(Color.BLACK);
+                    ViewGroup rootView = act.findViewById(android.R.id.content);
+                    rootView.addView(mDebugMrecPlaceholder);
+                }
+
+                mDebugMrecPlaceholder.setVisibility(View.VISIBLE);
+                positionDebugMrecPlaceholder(widthPx, heightPx);
+                mDebugMrecPlaceholder.bringToFront();
+                Log.d(TAG, "ShowDebugMrecPlaceholder: widthPx=" + widthPx + " heightPx=" + heightPx);
+            }
+        });
+    }
+
+    /**
+     * Hides the debug MREC placeholder created by {@link #ShowDebugMrecPlaceholder()}.
+     */
+    public void HideDebugMrecPlaceholder() {
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (mDebugMrecPlaceholder != null) {
+                    mDebugMrecPlaceholder.setVisibility(View.GONE);
+                    Log.d(TAG, "HideDebugMrecPlaceholder");
+                }
+            }
+        });
+    }
+
+    /**
      * Sets a custom position for the main banner ad view.
      * Safe to call at any time; position is persisted and re-applied if the banner
      * is recreated (e.g., after cleanup() + Init()).
@@ -1762,9 +1968,19 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 if (rectAdView == null) {
                     Log.w(TAG, "SetMRECPosition: rectAdView not yet initialized; "
                             + "position saved and will be applied on next load.");
-                    return;
+                } else {
+                    applyAdViewPosition(rectAdView, position, offsetX, offsetY, false);
                 }
-                applyAdViewPosition(rectAdView, position, offsetX, offsetY, false);
+                // Sync debug placeholder regardless of whether rectAdView exists
+                if (mDebugMrecPlaceholder != null
+                        && mDebugMrecPlaceholder.getVisibility() == View.VISIBLE) {
+                    Activity act = getCurrentActivity();
+                    if (act != null) {
+                        int wPx = AppLovinSdkUtils.dpToPx(act, MaxAdFormat.MREC.getSize().getWidth());
+                        int hPx = AppLovinSdkUtils.dpToPx(act, MaxAdFormat.MREC.getSize().getHeight());
+                        positionDebugMrecPlaceholder(wPx, hPx);
+                    }
+                }
             }
         });
     }

@@ -1,33 +1,25 @@
 {
-  "active_plan": "T:\\android-modules\\.sisyphus\\plans\\debug-banner-placeholder.md",
-  "started_at": "2026-05-15T04:57:02.514Z",
+  "active_plan": "T:\\android-modules\\.sisyphus\\plans\\mrec-absolute-position-debug.md",
+  "started_at": "2026-05-15T08:51:02.821Z",
   "session_ids": [
-    "ses_1d604e5f0ffepR0YKbVgJ3SXvQ"
+    "ses_1d534e130ffey4nwTLuAbzVfGr"
   ],
-  "plan_name": "debug-banner-placeholder",
+  "plan_name": "mrec-absolute-position-debug",
   "session_origins": {
-    "ses_1d604e5f0ffepR0YKbVgJ3SXvQ": "direct"
+    "ses_1d534e130ffey4nwTLuAbzVfGr": "direct"
   },
   "task_sessions": {
     "todo:1": {
       "task_key": "todo:1",
       "task_label": "1",
-      "task_title": "Thêm debug banner placeholder vào MaxAdsService",
-      "session_id": "ses_1d5fef3b7ffe4uFdNFisFyLLsj",
+      "task_title": "Implement all MREC absolute-position and debug-placeholder additions in `MaxAdsService.java`",
+      "session_id": "ses_1d5295d7dfferHyXXEMYqf9Fhb",
       "agent": "Sisyphus-Junior",
       "category": "quick",
-      "updated_at": "2026-05-15T05:03:13.610Z"
-    },
-    "final-wave:f1": {
-      "task_key": "final-wave:f1",
-      "task_label": "F1",
-      "task_title": "**Plan Compliance Audit** — `oracle`",
-      "session_id": "ses_1d5f99203ffeCSl8KexY16aXRH",
-      "agent": "oracle",
-      "updated_at": "2026-05-15T05:06:34.020Z"
+      "updated_at": "2026-05-15T09:22:51.453Z"
     }
   },
-  "active_work_id": "debug-banner-placeholder",
+  "active_work_id": "mrec-absolute-position-debug",
   "status": "completed",
-  "updated_at": "2026-05-15T05:07:00.000Z"
+  "updated_at": "2026-05-15T09:25:00.000Z"
 }
