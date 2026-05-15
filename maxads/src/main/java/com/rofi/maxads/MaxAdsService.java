@@ -1307,6 +1307,16 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     }
 
     /**
+     * Returns true if the banner ad has been loaded and is ready to be displayed.
+     * Mirrors the {@link #IsRewardReady()} / {@link #IsInterReady()} naming convention.
+     *
+     * @return true if {@code bannerAdView} exists and the last load completed successfully.
+     */
+    public boolean IsBannerReadyCalled() {
+        return bannerAdView != null && _isBannerLoaded;
+    }
+
+    /**
      * Returns the adaptive banner height in pixels for the current screen orientation.
      * Uses the same calculation as {@link #LoadNormalBanner(Activity, int)}.
      * Returns 0 if the activity is unavailable or the AppLovin SDK is not yet initialized.
