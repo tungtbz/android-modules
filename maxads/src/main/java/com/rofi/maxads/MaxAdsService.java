@@ -74,6 +74,10 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     private volatile MaxAdView bannerAdView;
     private volatile MaxAdView rectAdView;
 
+    // Debug placeholder — solid black view at the exact position/size of the banner.
+    // Used to test SetBannerPosition / SetBannerPositionAbsolute without waiting for ad load.
+    private volatile View mDebugBannerPlaceholder;
+
     private volatile int mCurrentVideoRewardRequestCode;
     private volatile int mCurrentInterRequestCode;
 
@@ -649,6 +653,16 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         ShowInter(RESUME_INTER_ADS);
     }
 
+    public int GetBannerHeight(){
+        if (bannerAdView == null) return 0;
+        ViewGroup.LayoutParams existingLp = bannerAdView.getLayoutParams();
+        int heightPx = (existingLp != null && existingLp.height > 0)
+                ? existingLp.height
+                : AppLovinSdkUtils.dpToPx(getCurrentActivity(),
+                MaxAdFormat.BANNER.getAdaptiveSize(getCurrentActivity()).getHeight());
+        return heightPx;
+    }
+
     public void SetBannerPositionAbsolute(int centerXPx, int centerYPx) {
         runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
             @Override
@@ -672,7 +686,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 params.height    = heightPx;
                 // Căn tâm banner khớp tâm RectTransform; KHÔNG cộng safe insets
                 // vì Unity đã bao gồm chúng trong centerYPx
-                params.topMargin  = centerYPx + heightPx / 2;
+                params.topMargin  = centerYPx - heightPx / 2;
                 params.leftMargin = 0;
                 params.rightMargin = 0;
                 params.bottomMargin = 0;
@@ -680,6 +694,20 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 bannerAdView.requestLayout();
                 Log.d(TAG, "SetBannerPositionAbsolute: centerY=" + centerYPx
                         + " heightPx=" + heightPx + " topMargin=" + params.topMargin);
+
+                // Sync debug placeholder with absolute position
+                if (mDebugBannerPlaceholder != null
+                        && mDebugBannerPlaceholder.getVisibility() == View.VISIBLE) {
+                    FrameLayout.LayoutParams debugParams = new FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, heightPx);
+                    debugParams.gravity     = Gravity.TOP | Gravity.START;
+                    debugParams.topMargin   = centerYPx - heightPx / 2;
+                    debugParams.leftMargin  = 0;
+                    debugParams.rightMargin = 0;
+                    debugParams.bottomMargin = 0;
+                    mDebugBannerPlaceholder.setLayoutParams(debugParams);
+                    mDebugBannerPlaceholder.requestLayout();
+                }
             }
         });
     }
@@ -1483,6 +1511,124 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     }
 
     /**
+     * Shows a solid black placeholder view at the exact position and adaptive height
+     * of the real banner. Use this to visually verify SetBannerPosition() and
+     * SetBannerPositionAbsolute() without waiting for the banner ad to load.
+     * <p>
+     * SetBannerPosition() and SetBannerPositionAbsolute() automatically keep the
+     * placeholder in sync while it is visible.
+     */
+    public void ShowDebugBannerPlaceholder() {
+        Activity activity = getCurrentActivity();
+        if (activity == null) return;
+        runSafelyOnUiThread(activity, new Runnable() {
+            @Override
+            public void run() {
+                Activity act = getCurrentActivity();
+                if (act == null) return;
+
+                int heightDp = MaxAdFormat.BANNER.getAdaptiveSize(act).getHeight();
+                int heightPx = AppLovinSdkUtils.dpToPx(act, heightDp);
+
+                if (mDebugBannerPlaceholder == null) {
+                    mDebugBannerPlaceholder = new View(act);
+                    mDebugBannerPlaceholder.setBackgroundColor(Color.BLACK);
+                    ViewGroup rootView = act.findViewById(android.R.id.content);
+                    rootView.addView(mDebugBannerPlaceholder);
+                }
+
+                mDebugBannerPlaceholder.setVisibility(View.VISIBLE);
+                positionDebugBannerPlaceholder(heightPx);
+                mDebugBannerPlaceholder.bringToFront();
+                Log.d(TAG, "ShowDebugBannerPlaceholder: heightPx=" + heightPx);
+            }
+        });
+    }
+
+    /**
+     * Hides the debug banner placeholder created by {@link #ShowDebugBannerPlaceholder()}.
+     */
+    public void HideDebugBannerPlaceholder() {
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (mDebugBannerPlaceholder != null) {
+                    mDebugBannerPlaceholder.setVisibility(View.GONE);
+                    Log.d(TAG, "HideDebugBannerPlaceholder");
+                }
+            }
+        });
+    }
+
+    /**
+     * Repositions the debug banner placeholder to match the current banner position state.
+     * Mirrors the gravity + margin logic of applyAdViewPosition (isBanner=true).
+     * Must be called on the UI thread.
+     *
+     * @param heightPx Adaptive banner height in pixels.
+     */
+    private void positionDebugBannerPlaceholder(int heightPx) {
+        if (mDebugBannerPlaceholder == null) return;
+        Activity act = getCurrentActivity();
+        if (act == null) return;
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, heightPx);
+
+        if (_bannerCustomPosition != null) {
+            // Mirror applyAdViewPosition logic (isBanner = true, MATCH_PARENT)
+            String pos = _bannerCustomPosition.toLowerCase().trim();
+            if ("centered".equals(pos)) pos = "bottom_center";
+
+            int gravity;
+            if (pos.contains("top")) {
+                gravity = Gravity.TOP;
+            } else {
+                gravity = Gravity.BOTTOM;
+            }
+            if (pos.contains("left")) {
+                gravity |= Gravity.START;
+            } else if (pos.contains("right")) {
+                gravity |= Gravity.END;
+            } else {
+                gravity |= Gravity.CENTER_HORIZONTAL;
+            }
+
+            Insets insets = getSafeInsets();
+            int marginLeft   = insets.left;
+            int marginRight  = insets.right;
+            int marginTop    = insets.top;
+            int marginBottom = insets.bottom;
+
+            // For MATCH_PARENT banner: offsetX only applies to START/END edges
+            int hGravity = gravity & Gravity.HORIZONTAL_GRAVITY_MASK;
+            if (hGravity == Gravity.START) {
+                marginLeft += _bannerCustomOffsetX;
+            } else if (hGravity == Gravity.END) {
+                marginRight += _bannerCustomOffsetX;
+            }
+
+            int vGravity = gravity & Gravity.VERTICAL_GRAVITY_MASK;
+            if (vGravity == Gravity.TOP) {
+                marginTop += _bannerCustomOffsetY;
+            } else {
+                marginBottom += _bannerCustomOffsetY;
+            }
+
+            params.gravity = gravity;
+            params.setMargins(marginLeft, marginTop, marginRight, marginBottom);
+        } else {
+            // Default gravity — mirrors LoadNormalBanner behaviour
+            params.gravity = (_bannerPosition == Constants.POSITION_CENTER_TOP)
+                    ? Gravity.TOP | Gravity.CENTER_HORIZONTAL
+                    : Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        }
+
+        mDebugBannerPlaceholder.setLayoutParams(params);
+        mDebugBannerPlaceholder.requestLayout();
+    }
+
+    /**
      * Sets a custom position for the main banner ad view.
      * Safe to call at any time; position is persisted and re-applied if the banner
      * is recreated (e.g., after cleanup() + Init()).
@@ -1505,9 +1651,18 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 if (bannerAdView == null) {
                     Log.w(TAG, "SetBannerPosition: bannerAdView not yet initialized; "
                             + "position saved and will be applied on next load.");
-                    return;
+                } else {
+                    applyAdViewPosition(bannerAdView, position, offsetX, offsetY, true);
                 }
-                applyAdViewPosition(bannerAdView, position, offsetX, offsetY, true);
+                // Sync debug placeholder regardless of whether bannerAdView exists
+                if (mDebugBannerPlaceholder != null
+                        && mDebugBannerPlaceholder.getVisibility() == View.VISIBLE) {
+                    Activity act = getCurrentActivity();
+                    if (act != null) {
+                        int hDp = MaxAdFormat.BANNER.getAdaptiveSize(act).getHeight();
+                        positionDebugBannerPlaceholder(AppLovinSdkUtils.dpToPx(act, hDp));
+                    }
+                }
             }
         });
     }

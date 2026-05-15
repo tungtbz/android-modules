@@ -74,7 +74,7 @@ Sequential — 1 task duy nhất.
 
 ## TODOs
 
-- [ ] 1. Thêm debug banner placeholder vào MaxAdsService
+- [x] 1. Thêm debug banner placeholder vào MaxAdsService
 
   **File**: `T:\android-modules\maxads\src\main\java\com\rofi\maxads\MaxAdsService.java`
 
@@ -342,7 +342,7 @@ Sequential — 1 task duy nhất.
 
 ## Final Verification Wave
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
+- [x] F1. **Plan Compliance Audit** — `oracle`
   Đọc diff cuối, kiểm tra: field đã thêm, 3 method public/private đã thêm, `SetBannerPosition` và `SetBannerPositionAbsolute` đã sync placeholder, không có logic banner thật nào bị thay đổi, build clean.
   Output: `Must Have [N/N] | Must NOT Have [N/N] | VERDICT: APPROVE/REJECT`
 
