@@ -649,6 +649,41 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         ShowInter(RESUME_INTER_ADS);
     }
 
+    public void SetBannerPositionAbsolute(int centerXPx, int centerYPx) {
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (bannerAdView == null) return;
+                ViewGroup.LayoutParams existingLp = bannerAdView.getLayoutParams();
+                int heightPx = (existingLp != null && existingLp.height > 0)
+                        ? existingLp.height
+                        : AppLovinSdkUtils.dpToPx(getCurrentActivity(),
+                        MaxAdFormat.BANNER.getAdaptiveSize(getCurrentActivity()).getHeight());
+                FrameLayout.LayoutParams params;
+                if (existingLp instanceof FrameLayout.LayoutParams) {
+                    params = (FrameLayout.LayoutParams) existingLp;
+                } else {
+                    params = new FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, heightPx);
+                }
+                // TOP | START + absolute margin = tọa độ tuyệt đối, không bị gravity offset
+                params.gravity   = Gravity.TOP | Gravity.START;
+                params.width     = ViewGroup.LayoutParams.MATCH_PARENT;
+                params.height    = heightPx;
+                // Căn tâm banner khớp tâm RectTransform; KHÔNG cộng safe insets
+                // vì Unity đã bao gồm chúng trong centerYPx
+                params.topMargin  = centerYPx + heightPx / 2;
+                params.leftMargin = 0;
+                params.rightMargin = 0;
+                params.bottomMargin = 0;
+                bannerAdView.setLayoutParams(params);
+                bannerAdView.requestLayout();
+                Log.d(TAG, "SetBannerPositionAbsolute: centerY=" + centerYPx
+                        + " heightPx=" + heightPx + " topMargin=" + params.topMargin);
+            }
+        });
+    }
+
     //private
     void InitVideoRewardAds(Activity activity) {
 //        String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
@@ -1352,7 +1387,12 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     public void ShowReward(int requestCode) {
         if (IsRewardReady()) {
             mCurrentVideoRewardRequestCode = requestCode;
-            mRewardedAd.showAd(getCurrentActivity());
+            runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+                @Override
+                public void run() {
+                    mRewardedAd.showAd(getCurrentActivity());
+                }
+            });
         } else {
             Log.e(TAG, "ShowVideo Applovin: FAILEDDDDDDDDDDDDD");
         }
@@ -1375,7 +1415,12 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         //show resume ads
         if (requestCode == RESUME_INTER_ADS) {
             if (IsInterReady()) {
-                mInterstitialAd.showAd(getCurrentActivity());
+                runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+                    @Override
+                    public void run() {
+                        mInterstitialAd.showAd(getCurrentActivity());
+                    }
+                });
             }
             Log.d(TAG, "ShowInter: check 1 ");
             return;
@@ -1392,7 +1437,12 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             isClickToAds = false;
             Log.d(TAG, "ShowInter: check 3 ");
             mCurrentInterRequestCode = requestCode;
-            mInterstitialAd.showAd(getCurrentActivity());
+            runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+                @Override
+                public void run() {
+                    mInterstitialAd.showAd(getCurrentActivity());
+                }
+            });
 
         } else {
             Log.d(TAG, "ShowInter: check 4 ");
@@ -1402,7 +1452,12 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     @Override
     public void ShowBanner(Activity activity) {
         Log.d(TAG, "ShowBanner");
-        ShowNormalBanner(activity, _bannerPosition);
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                ShowNormalBanner(activity, _bannerPosition);
+            }
+        });
 
 //        int type = FirebaseRemoteConfigService.getInstance().GetInt(Constants.RK_BANNER_TYPE_OF_SCREEN + screenCode);
 //        Log.d(TAG, "ShowBanner for screen: " + screenCode + " with position: " + _bannerPosition + ", type: " + type);
@@ -1418,8 +1473,13 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
     @Override
     public void HideBanner() {
-        HideNormalBanner();
-        HideNativeBanner();
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                HideNormalBanner();
+                HideNativeBanner();
+            }
+        });
     }
 
     /**
@@ -1482,37 +1542,47 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     @Override
     public void ShowMREC(Activity activity) {
         Log.d(TAG, "ShowMREC");
-        if (rectAdView == null) {
-            LoadMREC(activity, _mrecPosition);
-            return;
-        }
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (rectAdView == null) {
+                    LoadMREC(activity, _mrecPosition);
+                    return;
+                }
 
-        mRectShowFlag = 2;
+                mRectShowFlag = 2;
 
-        if (rectAdView.getVisibility() != View.VISIBLE) {
-            rectAdView.setVisibility(View.VISIBLE);
+                if (rectAdView.getVisibility() != View.VISIBLE) {
+                    rectAdView.setVisibility(View.VISIBLE);
 
-            rectAdView.startAutoRefresh();
+                    rectAdView.startAutoRefresh();
 
-            if (!isMRECLoading && !isMRECLoaded) {
-                rectAdView.loadAd();
+                    if (!isMRECLoading && !isMRECLoaded) {
+                        rectAdView.loadAd();
+                    }
+                }
             }
-        }
+        });
     }
 
     @Override
     public void HideMREC() {
         Log.d(TAG, "HideMREC");
-        if (mRectBannerState == 2 && rectAdView != null) {
-            rectAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
-            rectAdView.stopAutoRefresh();
-        }
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (mRectBannerState == 2 && rectAdView != null) {
+                    rectAdView.setExtraParameter("allow_pause_auto_refresh_immediately", "true");
+                    rectAdView.stopAutoRefresh();
+                }
 
-        if (rectAdView != null && rectAdView.getVisibility() == View.VISIBLE) {
-            rectAdView.setVisibility(View.GONE);
-        }
+                if (rectAdView != null && rectAdView.getVisibility() == View.VISIBLE) {
+                    rectAdView.setVisibility(View.GONE);
+                }
 
-        mRectShowFlag = 1;
+                mRectShowFlag = 1;
+            }
+        });
     }
 
     /**
@@ -1546,7 +1616,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
     //fix bug for unity 2022.3.12
     private void setBannerMrecToFront() {
-        new Handler().postDelayed(new Runnable() {
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
 
@@ -1566,47 +1636,66 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
     @Override
     public void ShowNativeMREC(Activity activity) {
         Log.d(TAG, "ShowNativeMREC");
-
-        if (nativeRectAdLoader != null) {
-            mNativeRectAdsContainer.setVisibility(View.VISIBLE);
-            nativeRectAdLoader.loadAd();
-        } else {
-            LoadRectNativeAds(activity, _mrecPosition);
-        }
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (nativeRectAdLoader != null) {
+                    mNativeRectAdsContainer.setVisibility(View.VISIBLE);
+                    nativeRectAdLoader.loadAd();
+                } else {
+                    LoadRectNativeAds(activity, _mrecPosition);
+                }
+            }
+        });
     }
 
     @Override
     public void HideNativeMREC() {
-        if (nativeRectAd != null) {
-            nativeRectAdLoader.destroy(nativeRectAd);
-        }
-        if (mNativeRectAdsContainer != null) {
-            mNativeRectAdsContainer.setVisibility(View.GONE);
-        }
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (nativeRectAd != null) {
+                    nativeRectAdLoader.destroy(nativeRectAd);
+                }
+                if (mNativeRectAdsContainer != null) {
+                    mNativeRectAdsContainer.setVisibility(View.GONE);
+                }
+            }
+        });
     }
 
     @Override
     public void ShowNativeBanner(Activity activity) {
-        if (nativeBannerAdLoader != null) {
-            Log.d(TAG, "ShowNativeBanner: 111");
-            mNativeBannerAdsContainer.setVisibility(View.VISIBLE);
-            nativeBannerAdLoader.loadAd();
-        } else {
-            Log.d(TAG, "ShowNativeBanner: 222");
-            InitNativeBannerAds(activity, _bannerPosition);
-        }
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                if (nativeBannerAdLoader != null) {
+                    Log.d(TAG, "ShowNativeBanner: 111");
+                    mNativeBannerAdsContainer.setVisibility(View.VISIBLE);
+                    nativeBannerAdLoader.loadAd();
+                } else {
+                    Log.d(TAG, "ShowNativeBanner: 222");
+                    InitNativeBannerAds(activity, _bannerPosition);
+                }
+            }
+        });
     }
 
     @Override
     public void HideNativeBanner() {
-        //destroy
-        if (nativeBannerAd != null) {
-            nativeBannerAdLoader.destroy(nativeBannerAd);
-        }
-        //hide container
-        if (mNativeBannerAdsContainer != null) {
-            mNativeBannerAdsContainer.setVisibility(View.GONE);
-        }
+        runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+            @Override
+            public void run() {
+                //destroy
+                if (nativeBannerAd != null) {
+                    nativeBannerAdLoader.destroy(nativeBannerAd);
+                }
+                //hide container
+                if (mNativeBannerAdsContainer != null) {
+                    mNativeBannerAdsContainer.setVisibility(View.GONE);
+                }
+            }
+        });
     }
 
     private void InitNativeBannerAds(Activity activity, int position) {
@@ -1857,7 +1946,12 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
         if (appOpenAd.isReady()) {
             Log.d(TAG, "ShowOpenAppAds ");
-            appOpenAd.showAd();
+            runSafelyOnUiThread(getCurrentActivity(), new Runnable() {
+                @Override
+                public void run() {
+                    appOpenAd.showAd();
+                }
+            });
         }
     }
 
