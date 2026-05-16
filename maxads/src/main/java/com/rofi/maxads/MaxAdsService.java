@@ -1490,6 +1490,14 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         return AppLovinSdkUtils.dpToPx(activity, heightDp);
     }
 
+    //300dp
+    public int getMrecWidthInPixels() {
+        Activity activity = getCurrentActivity();
+        if (activity == null) return 0;
+        int widthDp = MaxAdFormat.MREC.getSize().getWidth();
+        return AppLovinSdkUtils.dpToPx(activity, widthDp);
+    }
+
     @Override
     public void ShowReward(int requestCode) {
         if (IsRewardReady()) {
