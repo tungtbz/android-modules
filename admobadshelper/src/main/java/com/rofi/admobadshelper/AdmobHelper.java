@@ -1218,6 +1218,11 @@ public class AdmobHelper {
                     // Clear reference in synchronized block
                     setInterstitialAd(null); // This also sets interstitialAdLoaded = false
                     
+                    IAdmobAdListener callback = adsEventCallback;
+                    if (callback != null) {
+                        callback.onAdFailedToShowFullScreenContent(1, adError.getMessage());
+                    }
+                    
                     // Try to load again
                     loadInterstitial();
                 }
@@ -1531,6 +1536,11 @@ public class AdmobHelper {
                     Log.w(TAG, "Rewarded failed to show: " + adError.getMessage());
                     // Clear reference in synchronized block
                     setRewardedAd(null); // This also sets rewardedAdLoaded = false
+                    
+                    IAdmobAdListener callback = adsEventCallback;
+                    if (callback != null) {
+                        callback.onAdFailedToShowFullScreenContent(2, adError.getMessage());
+                    }
                     
                     // Try to load again
                     loadRewarded();
@@ -1869,6 +1879,12 @@ public class AdmobHelper {
                 Log.d(TAG, adError.getMessage());
                 _appOpenAd = null;
                 _isShowingAd = false;
+                
+                IAdmobAdListener callback = adsEventCallback;
+                if (callback != null) {
+                    callback.onAdFailedToShowFullScreenContent(0, adError.getMessage());
+                }
+                
                 loadAd(getCurrentActivity());
             }
 

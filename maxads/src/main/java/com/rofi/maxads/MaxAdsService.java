@@ -246,8 +246,8 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 // Start loading ads
                 Log.d(TAG, "onSdkInitialized");
 
-//                InitVideoRewardAds(_activity);
-//                InitInterAds(_activity);
+                InitVideoRewardAds(_activity);
+                InitInterAds(_activity);
 
 //                //cache MREC
                 LoadMREC(_activity, _mrecPosition);

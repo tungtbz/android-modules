@@ -8,6 +8,16 @@ public interface IAdmobAdListener {
     void onAdDismissedFullScreenContent(int type);
     
     /**
+     * Called when a full-screen ad fails to display after show() is called.
+     * This is distinct from load failure (onAdFailedToLoad).
+     * type: 0 = App Open Ad, 1 = Interstitial, 2 = Rewarded
+     *
+     * @param type         Ad type identifier (0=AOA, 1=Interstitial, 2=Rewarded)
+     * @param errorMessage Error description from AdError
+     */
+    default void onAdFailedToShowFullScreenContent(int type, String errorMessage) {}
+    
+    /**
      * Called when Interstitial ad is dismissed
      * @param interstitialCode Custom code passed when showing interstitial ad
      */

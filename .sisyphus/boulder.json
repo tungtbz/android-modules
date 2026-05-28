@@ -1,25 +1,25 @@
 {
-  "active_plan": "T:\\android-modules\\.sisyphus\\plans\\mrec-absolute-position-debug.md",
-  "started_at": "2026-05-15T08:51:02.821Z",
+  "active_plan": "T:\\android-modules\\.sisyphus\\plans\\admob-display-fail-callback.md",
+  "started_at": "2026-05-28T04:43:41.556Z",
   "session_ids": [
-    "ses_1d534e130ffey4nwTLuAbzVfGr"
+    "ses_1931f779effeofkVY7u5PBBNpf"
   ],
-  "plan_name": "mrec-absolute-position-debug",
+  "plan_name": "admob-display-fail-callback",
   "session_origins": {
-    "ses_1d534e130ffey4nwTLuAbzVfGr": "direct"
+    "ses_1931f779effeofkVY7u5PBBNpf": "direct"
   },
   "task_sessions": {
     "todo:1": {
       "task_key": "todo:1",
       "task_label": "1",
-      "task_title": "Implement all MREC absolute-position and debug-placeholder additions in `MaxAdsService.java`",
-      "session_id": "ses_1d5295d7dfferHyXXEMYqf9Fhb",
+      "task_title": "Add `onAdFailedToShowFullScreenContent` to `IAdmobAdListener` and wire 3 call-sites in `AdmobHelper`",
+      "session_id": "ses_19318ead4ffenuuvBAGopihV3u",
       "agent": "Sisyphus-Junior",
       "category": "quick",
-      "updated_at": "2026-05-15T09:22:51.453Z"
+      "updated_at": "2026-05-28T04:52:56.196Z"
     }
   },
-  "active_work_id": "mrec-absolute-position-debug",
-  "status": "completed",
-  "updated_at": "2026-05-15T09:25:00.000Z"
+  "active_work_id": "admob-display-fail-callback",
+  "status": "in_progress",
+  "updated_at": "2026-05-28T04:43:41.556Z"
 }
