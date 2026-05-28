@@ -214,6 +214,11 @@ public class IronsourceAdsService implements IAdsService {
             // The rewarded video ad was failed to show
             @Override
             public void onAdShowFailed(IronSourceError error, AdInfo adInfo) {
+                Log.e(TAG, "Reward: onAdShowFailed code=" + mCurrentVideoRewardRequestCode
+                        + " error=" + error.getErrorMessage());
+                isFullscreenAdsShowing = false;
+                _isShowingRewardAds = false;
+                _adsEventListener.onVideoRewardDisplayFailed(String.valueOf(mCurrentVideoRewardRequestCode));
             }
 
             // Invoked when the video ad was clicked.
@@ -273,6 +278,10 @@ public class IronsourceAdsService implements IAdsService {
             // Invoked when the ad failed to show
             @Override
             public void onAdShowFailed(IronSourceError error, AdInfo adInfo) {
+                Log.e(TAG, "Inter: onAdShowFailed code=" + mCurrentInterRequestCode
+                        + " error=" + error.getErrorMessage());
+                isFullscreenAdsShowing = false;
+                _adsEventListener.onInterDisplayFailed(String.valueOf(mCurrentInterRequestCode));
             }
 
             // Invoked when end user clicked on the interstitial ad

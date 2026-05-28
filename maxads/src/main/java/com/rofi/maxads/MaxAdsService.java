@@ -886,7 +886,11 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             @Override
             public void onAdDisplayFailed(MaxAd ad, MaxError error) {
                 // Rewarded ad failed to display. We recommend loading the next ad
+                Log.e(TAG, "Reward: onAdDisplayFailed code=" + mCurrentVideoRewardRequestCode
+                        + " error=" + error.getMessage());
+                isFullscreenAdsShowing = false;
                 LoadVideoRewardAd(false);
+                _adsAdsEventListener.onVideoRewardDisplayFailed(String.valueOf(mCurrentVideoRewardRequestCode));
             }
         });
 
@@ -1015,7 +1019,11 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
             @Override
             public void onAdDisplayFailed(MaxAd ad, MaxError error) {
                 // Interstitial ad failed to display. AppLovin recommends that you load the next ad.
+                Log.e(TAG, "Inter: onAdDisplayFailed code=" + mCurrentInterRequestCode
+                        + " error=" + error.getMessage());
+                isFullscreenAdsShowing = false;
                 LoadInterAd(false);
+                _adsAdsEventListener.onInterDisplayFailed(String.valueOf(mCurrentInterRequestCode));
             }
         });
 
@@ -1180,7 +1188,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
             @Override
             public void onAdDisplayFailed(MaxAd ad, MaxError error) {
-
+                Log.e(TAG, "MREC: onAdDisplayFailed error=" + error.getMessage());
             }
         });
 
@@ -1319,7 +1327,7 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
 
             @Override
             public void onAdDisplayFailed(MaxAd ad, MaxError error) {
-
+                Log.e(TAG, "Banner: onAdDisplayFailed error=" + error.getMessage());
             }
         });
 

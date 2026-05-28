@@ -10,6 +10,16 @@ public interface AdsEventListener {
     void onVideoRewardLoaded();
 
     void onVideoRewardDisplayed();
+
+    /**
+     * Called when a rewarded ad fails to display after {@code showAd()} was invoked.
+     * Implementations MUST unblock the user here (e.g., grant the reward anyway or
+     * show a fallback) because {@code onVideoRewardUserRewarded} will NOT be called.
+     *
+     * @param requestCode The request code originally passed to {@code ShowReward()}.
+     */
+    void onVideoRewardDisplayFailed(String requestCode);
+
     void onVideoRewardClosed();
 
     void onVideoRewardUserRewarded(String requestCode);
@@ -17,6 +27,15 @@ public interface AdsEventListener {
     void onInterLoaded();
 
     void onInterDisplayed();
+
+    /**
+     * Called when an interstitial ad fails to display after {@code showAd()} was invoked.
+     * Implementations should treat this the same as a closed ad — resume game flow,
+     * unlock UI, etc. — so the user is never left stuck waiting.
+     *
+     * @param code The request code originally passed to {@code ShowInter()}.
+     */
+    void onInterDisplayFailed(String code);
 
     void onInterHidden(String code);
 
