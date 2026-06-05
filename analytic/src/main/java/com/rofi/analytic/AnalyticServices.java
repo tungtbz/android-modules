@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import com.google.firebase.analytics.FirebaseAnalytics;
 import com.rofi.base.Constants;
 
 import java.util.ArrayList;
@@ -101,5 +102,57 @@ public class AnalyticServices {
             AnalyticServices.getInstance().LogEvent(_activityCached, eventName, null);
 //            Log.d(TAG, "LogEvent: " + eventName);
         }
+    }
+
+    private static final String PREF_UA_LOGGED = "ua_logged";
+    public void LogUserAcquisition(Activity activity, String acquisitionMediaSource, String acquisitionCampaign) {
+        if (activity == null) return;
+
+        // Check if already fired successfully in a previous session
+        SharedPreferences prefs = activity.getPreferences(Context.MODE_PRIVATE);
+        if (prefs.getBoolean(PREF_UA_LOGGED, false)) {
+            Log.d(TAG, "LogUserAcquisition: already logged, skipping.");
+            return;
+        }
+
+        String mediaSource = acquisitionMediaSource;
+        String campaign = acquisitionCampaign;
+
+        if (mediaSource.isEmpty() && campaign.isEmpty()) {
+            Log.w(TAG, "LogUserAcquisition: No acquisition data available from AppsFlyer yet.");
+            return;
+        }
+
+        try {
+            FirebaseAnalytics firebaseAnalytics = FirebaseAnalytics.getInstance(activity.getApplicationContext());
+
+            // Event name embeds the value directly — visible immediately in Firebase Console without param registration
+            // e.g. "ua_source_moloco_int", "ua_campaign_summer_2024"
+            // Firebase event name: max 40 chars, only letters/digits/underscore, must start with letter
+            String safeSource = sanitizeEventName(mediaSource);
+            String safeCampaign = sanitizeEventName(campaign);
+
+            firebaseAnalytics.logEvent("ua_source_" + safeSource, null);
+            firebaseAnalytics.logEvent("ua_camp_" + safeCampaign, null);
+
+            // Mark as successfully logged — never fire again
+            prefs.edit().putBoolean(PREF_UA_LOGGED, true).apply();
+
+            Log.d(TAG, "LogUserAcquisition: ua_source_" + safeSource + ", ua_camp_" + safeCampaign);
+        } catch (Exception e) {
+            Log.e(TAG, "LogUserAcquisition failed: " + e.getMessage());
+        }
+    }
+
+    private String sanitizeEventName(String raw) {
+        if (raw == null || raw.isEmpty()) return "unknown";
+        String result = raw.toLowerCase()
+                .replaceAll("[^a-z0-9_]", "_")  // replace invalid chars with underscore
+                .replaceAll("_+", "_")            // collapse multiple underscores
+                .replaceAll("^_+|_+$", "");       // trim leading/trailing underscores
+        if (result.isEmpty() || !Character.isLetter(result.charAt(0))) {
+            result = "x_" + result;
+        }
+        return result.length() > 32 ? result.substring(0, 32) : result; // reserve 8 chars for prefix "ua_camp_" (longest prefix)
     }
 }

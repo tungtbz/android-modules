@@ -5,6 +5,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.appsflyer.AppsFlyerConversionListener;
 import com.appsflyer.AppsFlyerInAppPurchaseValidatorListener;
 import com.appsflyer.AppsFlyerLib;
 import com.appsflyer.adrevenue.AppsFlyerAdRevenue;
@@ -23,13 +24,99 @@ public class AppflyerAcnalytic implements IAnalytic {
     private final String TAG = AppflyerAcnalytic.class.toString();
     String _mainNetwork;
 
+    // WeakReference to avoid memory leak — Activity may be destroyed before callback fires
+    private java.lang.ref.WeakReference<Activity> _weakActivity;
+
+    // Reuse a single Gson instance to avoid repeated GC alloc
+    private final Gson _gson = new Gson();
+
     @Override
     public void Init(Activity activity, String[] args) {
 
         String af_dev_key = args[0];
         _mainNetwork = args[1];
 
-        AppsFlyerLib.getInstance().init(af_dev_key, null, activity.getApplicationContext());
+        // Store weak reference — used to dispatch UA event to main thread after conversion data arrives
+        _weakActivity = new java.lang.ref.WeakReference<>(activity);
+        AppsFlyerConversionListener conversionListener = new AppsFlyerConversionListener() {
+            @Override
+            public void onConversionDataSuccess(Map<String, Object> conversionData) {
+                if (conversionData == null) return;
+
+                Log.d(TAG, "onConversionDataSuccess: Attribution data received.");
+
+                // Print full raw data as JSON for debugging (debug builds only, never in production)
+                if (BuildConfig.DEBUG) {
+                    try {
+                        String rawJson = _gson.toJson(conversionData);
+                        Log.w(TAG, "====== RAW DATA START ======");
+                        Log.w(TAG, "[APPSFLYER RAW JSON]: " + rawJson);
+                        Log.w(TAG, "====== RAW DATA END ========");
+                    } catch (Exception e) {
+                        Log.e(TAG, "Failed to print raw data: " + e.getMessage());
+                    }
+                }
+
+                // Only process on first install launch
+                if (!conversionData.containsKey("is_first_launch")) return;
+
+                String isFirstLaunch = String.valueOf(conversionData.get("is_first_launch"));
+                if (!isFirstLaunch.equalsIgnoreCase("true")) {
+                    Log.d(TAG, "[ATTRIBUTION] Regular re-open, skipping.");
+                    return;
+                }
+
+                // Extract media source
+                String mediaSource = conversionData.containsKey("media_source")
+                        ? String.valueOf(conversionData.get("media_source"))
+                        : "Organic";
+
+                // Extract campaign name
+                String campaign = conversionData.containsKey("campaign")
+                        ? String.valueOf(conversionData.get("campaign"))
+                        : "unknown";
+
+                Log.w(TAG, "[ATTRIBUTION] media_source: " + mediaSource);
+                Log.w(TAG, "[ATTRIBUTION] campaign: " + campaign);
+
+                if (mediaSource.toLowerCase().contains("moloco")) {
+                    Log.w(TAG, "[ATTRIBUTION] => Confirmed: User acquired from MOLOCO!");
+                }
+
+                Log.w(TAG, "==========================================");
+
+                Activity act = _weakActivity != null ? _weakActivity.get() : null;
+                if (act != null && !act.isFinishing()) {
+                    act.runOnUiThread(() -> {
+                        try {
+                            AnalyticServices.getInstance().LogUserAcquisition(act, mediaSource, campaign);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Auto LogUserAcquisition failed: " + e.getMessage());
+                        }
+                    });
+                } else {
+                    Log.w(TAG, "Auto LogUserAcquisition skipped: Activity is null or finishing.");
+                }
+            }
+
+            @Override
+            public void onConversionDataFail(String errorMessage) {
+                Log.e(TAG, "[ATTRIBUTION] Failed to get conversion data: " + errorMessage);
+            }
+
+            @Override
+            public void onAppOpenAttribution(Map<String, String> attributionData) {
+                // Deep link re-engagement attribution, no additional handling needed
+                Log.d(TAG, "onAppOpenAttribution: " + (attributionData != null ? attributionData.toString() : "null"));
+            }
+
+            @Override
+            public void onAttributionFailure(String errorMessage) {
+                Log.e(TAG, "onAttributionFailure: " + errorMessage);
+            }
+        };
+
+        AppsFlyerLib.getInstance().init(af_dev_key, conversionListener, activity.getApplicationContext());
         AppsFlyerLib.getInstance().start(activity.getApplicationContext());
         AppsFlyerLib.getInstance().registerValidatorListener(activity.getApplicationContext(), new AppsFlyerInAppPurchaseValidatorListener() {
             @Override
