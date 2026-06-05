@@ -246,12 +246,12 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
                 // Start loading ads
                 Log.d(TAG, "onSdkInitialized");
 
-                InitVideoRewardAds(_activity);
-                InitInterAds(_activity);
+//                InitVideoRewardAds();
+//                InitInterAds();
 
 //                //cache MREC
-                LoadMREC(_activity, _mrecPosition);
-                PreloadBanner();
+//                LoadMREC(_activity, _mrecPosition);
+//                PreloadBanner();
 
                 _adsAdsEventListener.onAdServiceLoaded();
 
@@ -791,11 +791,13 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         });
     }
 
-    //private
-    void InitVideoRewardAds(Activity activity) {
+
+
+    public void InitVideoRewardAds() {
 //        String videoRewardKey = activity.getResources().getString(R.string.applovin_videoreward_key);
         String videoRewardKey = _rewardAdId;
-        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, getCurrentActivity().getApplicationContext());
+        mRewardedAd = MaxRewardedAd.getInstance( videoRewardKey);
+//        mRewardedAd = MaxRewardedAd.getInstance(videoRewardKey, getCurrentActivity().getApplicationContext());
 
         mRewardedAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
@@ -929,11 +931,11 @@ public class MaxAdsService implements IAdsService, MaxAdListener, MaxAdViewAdLis
         }
     }
 
-    void InitInterAds(Activity activity) {
+    public void InitInterAds() {
 //        String interKey = activity.getResources().getString(R.string.applovin_inter_key);
         Log.d(TAG, "createInterstitialAd: " + _interAdId);
 
-        mInterstitialAd = new MaxInterstitialAd(_interAdId, getCurrentActivity().getApplicationContext());
+        mInterstitialAd = new MaxInterstitialAd(_interAdId);
         mInterstitialAd.setRevenueListener(new MaxAdRevenueListener() {
             @Override
             public void onAdRevenuePaid(MaxAd ad) {
